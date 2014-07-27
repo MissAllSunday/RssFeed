@@ -22,4 +22,14 @@ class RssFeed extends Suki\Ohara
 	{
 		$this->setRegistry();
 	}
+
+	public function settings()
+	{
+
+	}
+
+	public function ScheduledTask()
+	{
+
+	}
 }
