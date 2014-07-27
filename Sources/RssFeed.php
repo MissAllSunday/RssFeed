@@ -23,7 +23,60 @@ class RssFeed extends Suki\Ohara
 		$this->setRegistry();
 	}
 
+	public function admin(&$adminAreas)
+	{
+		$adminAreas['config']['areas'][$this->name] = array(
+			'label' => $this->text('menu_name'),
+			'file' => 'RssFeed.php',
+			'function' => 'RssFeed::subActions#',
+			'icon' => 'posts.png',
+			'subsections' => array(
+				'settings' => $this->text('menu_name_settings'),
+				'list' => array($this->text('menu_name_list'))
+			),
+		);
+	}
+
+	public function subActions()
+	{
+		global $context;
+
+		$context['page_title'] = $this->text('menu_name');
+
+		// Safety first!
+		$subActions = array(
+			'settings',
+			'list'
+		);
+
+		$context[$context['admin_menu_name']]['tab_data'] = array(
+			'title' => $this->text('menu_name'),
+			'description' => $this->text('menu_name_desc'),
+			'tabs' => array(
+				'settings' => array(
+				),
+				'list' => array(
+				)
+			),
+		);
+
+		if ($this->validate('sa') && isset($subActions[$this->data('sa')]))
+		{
+			$call = $this->data('sa');
+			$call();
+			unset($call);
+		}
+
+		else
+			$this->settings();
+	}
+
 	public function settings()
+	{
+
+	}
+
+	public function list()
 	{
 
 	}

@@ -15,7 +15,7 @@ elseif (!defined('SMF'))
 
 
 $hooks = array(
-	'integrate_admin_areas' => 'RssFeed.php|RssFeed::admin',
+	'integrate_admin_areas' => 'RssFeed.php|RssFeed::admin#',
 );
 
 $call = 'add_integration_function';
