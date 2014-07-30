@@ -12,3 +12,8 @@ function template_rss_admin
 {
 
 }
+
+function template_rss_feed_add
+{
+
+}
