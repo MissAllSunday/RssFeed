@@ -20,6 +20,7 @@ class RssFeed extends Suki\Ohara
 
 	public function __construct()
 	{
+		// Initialize everything.
 		$this->setRegistry();
 	}
 
@@ -73,17 +74,18 @@ class RssFeed extends Suki\Ohara
 
 	public function settings()
 	{
-		global $context, $sourcedir, $scripturl, $smcFunc, $board;
+		loadTemplate($this->name);
 
-		loadTemplate('RSSFeed');
-
-		// Sub-Sub-actionPut
+		// Sub-Sub-actions :P
 		$subActions = array(
 			'enable',
 			'delete',
 			'add',
 			'save',
 		);
+
+		// A feed ID is going to be used a lot so better set this right now, 0 for adding a new feed.
+		$this->feedID = $this->validate('feed') ? $this->data('feed') ? 0;
 
 		if($this->validate('do') && isset($subActions[$this->data('do')]))
 		{
@@ -92,163 +94,64 @@ class RssFeed extends Suki\Ohara
 			$this->$call();
 		}
 
-		// Nope?  then show a nice list.
+		// Nope?  then show some much needed settings.
 		else
 			$this->listFeed();
+	}
 
-		// What about deleting one or more??
-		elseif (!empty($_REQUEST['delete']))
-		{
-			//$_POST['checked_feeds']
-			// We already asked that they wanted to delete, so we'll just delete... no confirmation
-			foreach ($_POST['checked_feeds'] as $key => $id)
-				$_POST['checked_feeds'][$key] = (int) $id;
-
-			$smcFunc['db_query']('', '
-				DELETE FROM {db_prefix}rssfeeds
-				WHERE id_feed IN ({array_int:feed_list})',
-				array(
-					'feed_list' => $_POST['checked_feeds'],
-				)
-			);
-		}
-		// Or are they saving one being modified??
-		elseif (!empty($_REQUEST['save']))
-		{
-			// First we check the session...
-			checkSession();
-
-			// Put the insert array together...
-			$insertOptions = array();
-
-			// Let's do the 'unrequireds' first...
-			$insertOptions['id_board'] = (int)$_POST['feed_board'];
-			$insertOptions['icon'] = isset($_POST['icon']) ? preg_replace('~[\./\\\\*\':"<>]~', '', $_POST['icon']) : 'xx';
-			$insertOptions['enabled'] = isset($_POST['feed_enabled']) ? 1 : 0;
-			$insertOptions['keywords'] = trim($_POST['feed_keywords']) != '' ? trim($_POST['feed_keywords']) : '';
-			$insertOptions['locked'] = isset($_POST['feed_locked']) ? 1 : 0;
-			$insertOptions['getfull'] = isset($_POST['feed_full']) ? 1 : 0;
-			$insertOptions['approve'] = isset($_POST['feed_approve']) ? 1 : 0;
-			$insertOptions['singletopic'] = isset($_POST['feed_singletopic']) ? 1 : 0;
-			$insertOptions['topicprefix'] = trim($_POST['feed_prefix']) != '' ? trim($_POST['feed_prefix']) : '';
-			$insertOptions['footer'] = !empty($_POST['feed_footer']) ? trim($_POST['feed_footer']) : '';
-			$insertOptions['numbertoimport'] = trim($_POST['feed_import']) != '' ? (int) trim($_POST['feed_import']) : 0;
-
-			$context['feed_errors'] = array();
-			// And now the requireds that we can throw errors on...
-			if (empty($_POST['feed_title']))
-				$context['feed_errors']['feed_title'] = ($insertOptions['title'] = '');
-			else
-				$insertOptions['title'] = preg_replace('~[&]([^;]{8}|[^;]{0,8}$)~', '&amp;$1', $_POST['feed_title']);
-
-			if (empty($_POST['feed_url']))
-				$context['feed_errors']['feed_url'] = ($insertOptions['feedurl'] = '');
-			else
-				$insertOptions['feedurl'] = trim($_POST['feed_url']);
-
-			if (empty($_POST['feed_poster']))
-				$context['feed_errors']['feed_poster'] = ($insertOptions['postername'] = '');
-			// Do a query to get the member's id
-			else
-			{
-				$request = $smcFunc['db_query']('', '
-					SELECT id_member
-					FROM {db_prefix}members
-					WHERE real_name = {string:name}
-						OR member_name = {string:name}
-					LIMIT 1',
-					array(
-						'name' => trim($_POST['feed_poster']),
-					)
-				);
-				if ($smcFunc['db_num_rows']($request) != 1)
-					$context['feed_errors']['feed_poster'] = ($insertOptions['postername'] = trim($_POST['feed_poster']));
-				else
-				{
-					$insertOptions['postername'] = trim($_POST['feed_poster']);
-					list($insertOptions['id_member']) = $smcFunc['db_fetch_row']($request);
-				}
-				$smcFunc['db_free_result']($request);
-			}
-
-			$insertOptions['regex'] = trim($_POST['feed_regex']);
-			if (!empty($insertOptions['getfull']) && empty($insertOptions['regex']))
-				$context['feed_errors']['feed_regex'] = '';
-
-			// if we had any errors, lets kick back a screen and highlight them...
-			if (!empty($context['feed_errors']))
-			{
-				$context['rss_feed'] = $insertOptions;
-				if (!empty($_POST['feed_id']))
-					$_REQUEST['feed'] = $_POST['feed_id'];
-				$_REQUEST['add'] = true;
-				return ModifyRSSFeedSettings();
-			}
-
-			// Looks like we're good.
-			// Modifying an existing feed?
-			if (!empty($_REQUEST['feed_id']))
-			{
-				$smcFunc['db_query']('','
-					UPDATE {db_prefix}rssfeeds
-					SET
-						id_board = {int:id_board},
-						feedurl = {string:feedurl},
-						title = {string:title},
-						icon = {string:icon},
-						enabled = {int:enabled},
-						postername = {string:postername},
-						id_member = {int:id_member},
-						keywords = {string:keywords},
-						regex = {string:regex},
-						locked = {int:locked},
-						getfull = {int:getfull},
-						approve = {int:approve},
-						singletopic = {int:singletopic},
-						topicprefix = {string:topicprefix},
-						footer = {string:footer},
-						numbertoimport = {int:numbertoimport}
-					WHERE id_feed = {int:id_feed}',
-					array_merge(array('id_feed' => (int)$_REQUEST['feed_id']), $insertOptions)
-				);
-				$context['feed_insert_success'] = $txt['rss_feed_update_success'];
-			}
-			// Or I guess we're inserting a new one
-			else
-			{
-				// Fix up the stuff for insertion, make sure the arrays are aligned
-				$insertRows = array( 'singletopic' => 'int', 'icon' => 'string', 'footer' => 'string', 'getfull' => 'int', 'id_board' => 'int', 'feedurl' => 'string', 'title' => 'string', 'enabled' => 'int', 'postername' => 'string', 'id_member' => 'int', 'keywords' => 'string', 'regex' => 'string', 'locked' => 'int', 'approve' => 'int', 'topicprefix' => 'string', 'numbertoimport' => 'int' );
-				ksort($insertRows);
-				ksort($insertOptions);
-
-				$smcFunc['db_insert']('',
-					'{db_prefix}rssfeeds',
-					$insertRows,
-					$insertOptions,
-					array('id_feed')
-				);
-				$id_feed = $smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
-				if (empty($id_feed))
-					$context['feed_insert_error'] = $txt['rss_feed_insert_error'];
-				else
-					$context['feed_insert_success'] = $txt['rss_feed_insert_success'];
-			}
-		}
-
+	public function listFeed()
+	{
 		// If they deleted or saved, let's show the main list
 		$context['sub_template'] = 'rss_feeder_list';
-		// Create the table that will display the feeds
+
+		// Get the feed's total count.
+		$context['Feed']['count'] = $this->countFeed();
+
+		// Quick trick for PHP < 5.4.
+		$that = $this;
+
+		// Create the table that will display the feeds.
 		$listOptions = array(
 			'id' => 'rss_feeder_list',
-			'items_per_page' => 40,
+			'items_per_page' => 10,
 			'default_sort_col' => 'icon',
-			'base_href' => $scripturl . '?action=admin;area=modsettings;sa=rssfeeds',
-			'no_items_label' => $txt['rss_feed_none'],
+			'base_href' => $this->scriptUrl . '?action=admin;area=modsettings;sa=rssfeeds',
+			'no_items_label' => $this->text('feed_none'),
 			'get_items' => array(
-				'function' => 'list_getFeeds',
+				'function' => function ($start, $items_per_page, $sort)
+				{
+					$request = $that->smcFunc['db_query']('', '
+						SELECT f.id_feed, b.name, f.title, f.feedurl, f.enabled, f.importcount, f.updatetime
+						FROM {db_prefix}rssfeeds AS f
+							LEFT JOIN {db_prefix}boards AS b ON (b.id_board = f.id_board)
+						ORDER BY {raw:sort}
+						LIMIT ' . $start . ', ' . $items_per_page,
+						array (
+							'sort' => $sort,
+						)
+					);
+					$feeds = array();
+					while ($row = $that->smcFunc['db_fetch_assoc']($request))
+						$feeds[] = $row;
+					$that->smcFunc['db_free_result']($request);
+
+					return $feeds;
+				},
 			),
 			'get_count' => array(
-				'function' => 'list_getNumFeeds',
+				'function' => function()
+				{
+					$request = $that->smcFunc['db_query']('', '
+						SELECT COUNT(*)
+						FROM {db_prefix}rssfeeds',
+						array(
+						)
+					);
+					list($numFeeds) = $that->smcFunc['db_fetch_row']($request);
+					$that->smcFunc['db_free_result']($request);
+
+					return $numFeeds;
+				}
 			),
 			'columns' => array(
 				'icon' => array(
@@ -256,27 +159,27 @@ class RssFeed extends Suki\Ohara
 						'value' => $txt['rss_feed_enabled'],
 					),
 					'data' => array(
-						'function' => create_function('$rowData', '
-							global $settings, $scripturl, $smcFunc, $txt;
-
-							if (empty($rowData[\'name\']) && $rowData[\'enabled\'])
+						'function' => function ($rowData) use($that)
+						{
+							if (empty($rowData['name']) && $rowData['enabled'])
 							{
-								$smcFunc[\'db_query\'](\'\', \'
+								$that->smcFunc['db_query']('', '
 									UPDATE {db_prefix}rssfeeds
 									SET enabled = 0
-									WHERE id_feed = {int:feed}\',
+									WHERE id_feed = {int:feed}',
 									array(
-										\'feed\' => $rowData[\'id_feed\'],
+										'feed' => $rowData['id_feed'],
 									)
 								);
 
 								// Log an error about the issue, just so the user can see why their feed was disabled...
-								log_error($txt[\'rss_feeder\'] . \': \' . $rowData[\'title\'] . \' (\' . $txt[\'rss_feed_board_error\'] . \')\');
+								log_error($that->text('rss_feeder') . ': ' . $rowData['title'] . ' (' . $that->text('board_error') . ')');
 
-								$rowData[\'enabled\'] = 0;
+								$rowData['enabled'] = 0;
 							}
-							return \'<a href="\' . $scripturl . \'?action=admin;area=modsettings;sa=rssfeeds;feed=\' . $rowData[\'id_feed\'] . ($rowData[\'enabled\'] ? \';disable\' : \';enable\') . \'"><img src="\' . $settings[\'images_url\'] . ($rowData[\'enabled\'] ? \'/rss_enabled.gif\' : \'/rss_disabled.gif\') . \'" alt="*" /></a>\';'
-						),
+
+							return '<a href="' . $that->scriptUrl . '?action=admin;area=modsettings;sa=rssfeeds;feed=' . $rowData['id_feed'] . ($rowData['enabled'] ? ';disable' : ';enable') . '"><img src="' . $that->settings['images_url'] . ($rowData['enabled'] ? '/rss_enabled.gif' : '/rss_disabled.gif') . '" alt="*" /></a>';
+						},
 						'style' => 'text-align: center; width: 130px;',
 					),
 					'sort' => array(
@@ -305,13 +208,13 @@ class RssFeed extends Suki\Ohara
 				),
 				'board' => array(
 					'header' => array(
-						'value' => $txt['rss_feed_board'],
+						'value' => $this->text('feed_board'),
 					),
 					'data' => array(
-						'function' => create_function('$rowData', '
-							global $txt;
-							return empty($rowData[\'name\']) ? \'<em><< \' . $txt[\'rss_feed_board_error\'] . \' >></em>\' : $rowData[\'name\'];'
-						),
+						'function' => function ($rowData) use($that)
+						{
+							return empty($rowData['name']) ? '<em><< ' . $that->('board_error') . ' >></em>' : $rowData['name'];
+						},
 						'style' => 'text-align: center;',
 					),
 					'sort' => array(
@@ -321,7 +224,7 @@ class RssFeed extends Suki\Ohara
 				),
 				'count' => array(
 					'header' => array(
-						'value' => $txt['rss_feed_count'],
+						'value' => $this->text('feed_count'),
 					),
 					'data' => array(
 						'db' => 'importcount',
@@ -334,10 +237,15 @@ class RssFeed extends Suki\Ohara
 				),
 				'update' => array(
 					'header' => array(
-						'value' => $txt['rss_feed_updated'],
+						'value' => $this->text('feed_updated'),
 					),
 					'data' => array(
-						'function' => create_function('$rowData', 'global $txt; return $rowData[\'updatetime\'] == 0 ? $txt[\'never\'] : timeformat($rowData[\'updatetime\']);'),
+						'function' => function ($rowData)
+						{
+							global $txt;
+
+							return $rowData['updatetime'] == 0 ? $txt['never'] : timeformat($rowData['updatetime']);
+						},
 						'style' => 'text-align: center;',
 					),
 					'sort' => array(
@@ -347,11 +255,11 @@ class RssFeed extends Suki\Ohara
 				),
 				'modify' => array(
 					'header' => array(
-						'value' => $txt['rss_feed_modify'],
+						'value' => $this->text('feed_modify'),
 					),
 					'data' => array(
 						'sprintf' => array(
-							'format' => '<a href="' . $scripturl . '?action=admin;area=modsettings;sa=rssfeeds;feed=%1$d">' . $txt['rss_feed_modify'] . '</a>',
+							'format' => '<a href="' . $this->scriptUrl . '?action=admin;area=modsettings;sa=rssfeeds;feed=%1$d">' . $this->text('feed_modify') . '</a>',
 							'params' => array(
 								'id_feed' => false,
 							),
@@ -375,47 +283,54 @@ class RssFeed extends Suki\Ohara
 				),
 			),
 			'form' => array(
-				'href' => $scripturl . '?action=admin;area=modsettings;sa=rssfeeds',
+				'href' => $this->scriptUrl . '?action=admin;area=modsettings;sa=rssfeeds',
 				'name' => 'rssfeedForm',
 			),
 			'additional_rows' => array(
 				array(
 					'position' => 'above_column_headers',
 					'value' => '
-						[<a href="' . $scripturl . '?action=admin;area=modsettings;sa=rssfeeds;add">'. $txt['rss_feed_add'] . '</a>]',
+						[<a href="' . $this->scriptUrl . '?action=admin;area=modsettings;sa=rssfeeds;add">'. $this->text('feed_add') . '</a>]',
 					'style' => 'text-align: right;',
 				),
 				array(
 					'position' => 'below_table_data',
 					'value' => '
-						<input class="button_submit" type="submit" onclick="return confirm(\'' . $txt['rss_feed_confirm'] . '\')" name="delete" value="'. $txt['rss_feed_delete'] . '" />',
+						<input class="button_submit" type="submit" onclick="return confirm(\'' . $this->text('feed_confirm') . '\')" name="delete" value="'. $this->text('feed_delete') . '" />',
 					'style' => 'text-align: right;',
 				),
 			),
 		);
 
-		require_once($sourcedir . '/Subs-List.php');
+		require_once($this->sourceDir . '/Subs-List.php');
 		createList($listOptions);
 	}
 
-	public function list()
+	public function deleteFeed()
 	{
+		$this->smcFunc['db_query']('', '
+			DELETE FROM {db_prefix}rssfeeds
+			WHERE id_feed IN ({array_int:feed_list})',
+			array(
+				'feed_list' => $this->data('toDelete'),
+			)
+		);
 
+		// Some session stuff here...
 	}
 
 	public function enableFeed($feed = false, $enable = '')
 	{
-		$feed = !empty($feed) ? (int) $feed : $this->data('feed');
 		$enable = !empty($enable) ? (int) $enable : $this->data('enable');
 
 		// Quick change on the status...
-		$smcFunc['db_query']('', '
+		$this->smcFunc['db_query']('', '
 			UPDATE {db_prefix}rssfeeds
 			SET enabled = {int:option}
 			WHERE id_feed = {int:feed}',
 			array(
 				'option' => $enable,
-				'feed' => $feed,
+				'feed' => $this->feedID,
 			)
 		);
 
@@ -424,13 +339,13 @@ class RssFeed extends Suki\Ohara
 
 	public function addFeed()
 	{
-		global $context, $smcFunc, $sourcedir;
+		global $context, $this->smcFunc, $sourcedir;
 
 		// Set the appropriated sub template.
 		$context['sub_template'] = 'rss_feed_add';
 
 		// Load the boards and categories for adding or editing a feed.
-		$request = $smcFunc['db_query']('', '
+		$request = $this->smcFunc['db_query']('', '
 			SELECT b.id_board, b.name, b.child_level, c.name AS cat_name, c.id_cat
 			FROM {db_prefix}boards AS b
 				LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)',
@@ -439,7 +354,7 @@ class RssFeed extends Suki\Ohara
 
 		$context['categories'] = array();
 
-		while ($row = $smcFunc['db_fetch_assoc']($request))
+		while ($row = $this->smcFunc['db_fetch_assoc']($request))
 		{
 			if (!isset($context['categories'][$row['id_cat']]))
 				$context['categories'][$row['id_cat']] = array (
@@ -455,7 +370,7 @@ class RssFeed extends Suki\Ohara
 				'selected' => !empty($_SESSION['move_to_topic']) && $_SESSION['move_to_topic'] == $row['id_board'] && $row['id_board'] != $board,
 			);
 		}
-		$smcFunc['db_free_result']($request);
+		$this->smcFunc['db_free_result']($request);
 
 		if (empty($context['categories']))
 			fatal_lang_error('rss_feed_no_boards', false);
@@ -464,7 +379,7 @@ class RssFeed extends Suki\Ohara
 		if (!isset($_REQUEST['add']))
 		{
 			// Lets get the feed from the database
-			$request = $smcFunc['db_query']('', '
+			$request = $this->smcFunc['db_query']('', '
 				SELECT *
 				FROM {db_prefix}rssfeeds
 				WHERE id_feed = {int:feed}
@@ -475,12 +390,12 @@ class RssFeed extends Suki\Ohara
 			);
 
 			// No Feed?? ut oh... hacker!!
-			if ($smcFunc['db_num_rows']($request) != 1)
+			if ($this->smcFunc['db_num_rows']($request) != 1)
 				fatal_lang_error('rss_feed_not_found', false);
 
-			$context['rss_feed'] = $smcFunc['db_fetch_assoc']($request);
+			$context['rss_feed'] = $this->smcFunc['db_fetch_assoc']($request);
 			$context['rss_feed'] = htmlspecialchars__recursive($context['rss_feed']);
-			$smcFunc['db_free_result']($request);
+			$this->smcFunc['db_free_result']($request);
 		}
 
 		$context['icon'] = !empty($context['rss_feed']['icon']) ? $context['rss_feed']['icon'] : 'xx';
@@ -509,6 +424,128 @@ class RssFeed extends Suki\Ohara
 				'is_last' => empty($context['icons']),
 				'selected' => true,
 			));
+		}
+	}
+
+	public function saveFeed()
+	{
+		// First we check the session...
+		checkSession();
+
+		// Put the insert array together...
+		$insertOptions = array();
+
+		// Let's do the 'unrequireds' first...
+		$insertOptions['id_board'] = (int)$_POST['feed_board'];
+		$insertOptions['icon'] = isset($_POST['icon']) ? preg_replace('~[\./\\\\*':"<>]~', '', $_POST['icon']) : 'xx';
+		$insertOptions['enabled'] = isset($_POST['feed_enabled']) ? 1 : 0;
+		$insertOptions['keywords'] = trim($_POST['feed_keywords']) != '' ? trim($_POST['feed_keywords']) : '';
+		$insertOptions['locked'] = isset($_POST['feed_locked']) ? 1 : 0;
+		$insertOptions['getfull'] = isset($_POST['feed_full']) ? 1 : 0;
+		$insertOptions['approve'] = isset($_POST['feed_approve']) ? 1 : 0;
+		$insertOptions['singletopic'] = isset($_POST['feed_singletopic']) ? 1 : 0;
+		$insertOptions['topicprefix'] = trim($_POST['feed_prefix']) != '' ? trim($_POST['feed_prefix']) : '';
+		$insertOptions['footer'] = !empty($_POST['feed_footer']) ? trim($_POST['feed_footer']) : '';
+		$insertOptions['numbertoimport'] = trim($_POST['feed_import']) != '' ? (int) trim($_POST['feed_import']) : 0;
+
+		$context['feed_errors'] = array();
+		// And now the requireds that we can throw errors on...
+		if (empty($_POST['feed_title']))
+			$context['feed_errors']['feed_title'] = ($insertOptions['title'] = '');
+		else
+			$insertOptions['title'] = preg_replace('~[&]([^;]{8}|[^;]{0,8}$)~', '&amp;$1', $_POST['feed_title']);
+
+		if (empty($_POST['feed_url']))
+			$context['feed_errors']['feed_url'] = ($insertOptions['feedurl'] = '');
+		else
+			$insertOptions['feedurl'] = trim($_POST['feed_url']);
+
+		if (empty($_POST['feed_poster']))
+			$context['feed_errors']['feed_poster'] = ($insertOptions['postername'] = '');
+		// Do a query to get the member's id
+		else
+		{
+			$request = $this->smcFunc['db_query']('', '
+				SELECT id_member
+				FROM {db_prefix}members
+				WHERE real_name = {string:name}
+					OR member_name = {string:name}
+				LIMIT 1',
+				array(
+					'name' => trim($_POST['feed_poster']),
+				)
+			);
+			if ($this->smcFunc['db_num_rows']($request) != 1)
+				$context['feed_errors']['feed_poster'] = ($insertOptions['postername'] = trim($_POST['feed_poster']));
+			else
+			{
+				$insertOptions['postername'] = trim($_POST['feed_poster']);
+				list($insertOptions['id_member']) = $this->smcFunc['db_fetch_row']($request);
+			}
+			$this->smcFunc['db_free_result']($request);
+		}
+
+		$insertOptions['regex'] = trim($_POST['feed_regex']);
+		if (!empty($insertOptions['getfull']) && empty($insertOptions['regex']))
+			$context['feed_errors']['feed_regex'] = '';
+
+		// if we had any errors, lets kick back a screen and highlight them...
+		if (!empty($context['feed_errors']))
+		{
+			$context['rss_feed'] = $insertOptions;
+			if (!empty($_POST['feed_id']))
+				$_REQUEST['feed'] = $_POST['feed_id'];
+			$_REQUEST['add'] = true;
+			return ModifyRSSFeedSettings();
+		}
+
+		// Looks like we're good.
+		// Modifying an existing feed?
+		if (!empty($_REQUEST['feed_id']))
+		{
+			$this->smcFunc['db_query']('','
+				UPDATE {db_prefix}rssfeeds
+				SET
+					id_board = {int:id_board},
+					feedurl = {string:feedurl},
+					title = {string:title},
+					icon = {string:icon},
+					enabled = {int:enabled},
+					postername = {string:postername},
+					id_member = {int:id_member},
+					keywords = {string:keywords},
+					regex = {string:regex},
+					locked = {int:locked},
+					getfull = {int:getfull},
+					approve = {int:approve},
+					singletopic = {int:singletopic},
+					topicprefix = {string:topicprefix},
+					footer = {string:footer},
+					numbertoimport = {int:numbertoimport}
+				WHERE id_feed = {int:id_feed}',
+				array_merge(array('id_feed' => (int)$_REQUEST['feed_id']), $insertOptions)
+			);
+			$context['feed_insert_success'] = $txt['rss_feed_update_success'];
+		}
+		// Or I guess we're inserting a new one
+		else
+		{
+			// Fix up the stuff for insertion, make sure the arrays are aligned
+			$insertRows = array( 'singletopic' => 'int', 'icon' => 'string', 'footer' => 'string', 'getfull' => 'int', 'id_board' => 'int', 'feedurl' => 'string', 'title' => 'string', 'enabled' => 'int', 'postername' => 'string', 'id_member' => 'int', 'keywords' => 'string', 'regex' => 'string', 'locked' => 'int', 'approve' => 'int', 'topicprefix' => 'string', 'numbertoimport' => 'int' );
+			ksort($insertRows);
+			ksort($insertOptions);
+
+			$this->smcFunc['db_insert']('',
+				'{db_prefix}rssfeeds',
+				$insertRows,
+				$insertOptions,
+				array('id_feed')
+			);
+			$id_feed = $this->smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
+			if (empty($id_feed))
+				$context['feed_insert_error'] = $txt['rss_feed_insert_error'];
+			else
+				$context['feed_insert_success'] = $txt['rss_feed_insert_success'];
 		}
 	}
 
