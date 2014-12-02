@@ -4,7 +4,7 @@
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "bd66d061324f09f5cf19f7597c52fe75",
+    "hash": "073b491bba6891298b2f1df0d60a6139",
     "packages": [
         {
             "name": "simplepie/simplepie",
@@ -66,12 +66,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/MissAllSunday/Ohara.git",
-                "reference": "ec5eaa366e01361295a379b756b75252048e5ad9"
+                "reference": "f09f59111eef3bca21643f37b594a61bc112ed9f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/MissAllSunday/Ohara/zipball/ec5eaa366e01361295a379b756b75252048e5ad9",
-                "reference": "ec5eaa366e01361295a379b756b75252048e5ad9",
+                "url": "https://api.github.com/repos/MissAllSunday/Ohara/zipball/f09f59111eef3bca21643f37b594a61bc112ed9f",
+                "reference": "f09f59111eef3bca21643f37b594a61bc112ed9f",
                 "shasum": ""
             },
             "require": {
@@ -101,7 +101,7 @@
                 "SMF",
                 "modifications"
             ],
-            "time": "2014-07-24 18:11:50"
+            "time": "2014-12-01 20:47:23"
         }
     ],
     "packages-dev": [],
@@ -110,6 +110,7 @@
     "stability-flags": {
         "suki/ohara": 20
     },
+    "prefer-stable": false,
     "platform": [],
     "platform-dev": []
 }

@@ -29,83 +29,136 @@ class RssFeed extends Suki\Ohara
 		$adminAreas['config']['areas'][$this->name] = array(
 			'label' => $this->text('menu_name'),
 			'file' => 'RssFeed.php',
-			'function' => 'RssFeed::subActions#',
+			'function' => 'RssFeed::call#',
 			'icon' => 'posts.png',
 			'subsections' => array(
-				'settings' => $this->text('menu_name_settings'),
-				'list' => array($this->text('menu_name_list'))
+				'list' => array($this->text('menu_name_list')),
+				'add' => array($this->text('feed_add'))
 			),
 		);
 	}
 
-	public function subActions()
+	public function call()
 	{
 		global $context;
 
-		$context['page_title'] = $this->text('menu_name');
+		loadTemplate($this->name);
 
-		// Safety first!
-		$subActions = array(
-			'settings',
-			'list'
-		);
+		// A feed ID is going to be used a lot so better set this right now, 0 for adding a new feed.
+		$this->feedID = $this->validate('feed') ? $this->data('feed') : 0;
+
+		$context['page_title'] = $this->text('menu_name');
 
 		$context[$context['admin_menu_name']]['tab_data'] = array(
 			'title' => $this->text('menu_name'),
-			'description' => $this->text('menu_name_desc'),
+			'description' => $this->text('feed_desc'),
 			'tabs' => array(
-				'settings' => array(
-				),
-				'list' => array(
-				)
+				'list' => array(),
+				'add' => array(),
 			),
 		);
 
-		if ($this->validate('sa') && isset($subActions[$this->data('sa')]))
-		{
-			$call = $this->data('sa');
-			$this->$call();
-			unset($call);
-		}
+		// Subactions.
+		$subActions = array('list', 'add',);
 
-		else
-			$this->settings();
+		$call = ($this->validate('sa') && in_array($this->data('sa'), $subActions) ? $this->data('sa') : 'list') . 'Feed';
+
+		return $this->$call();
 	}
 
-	public function settings()
+	public function addFeed()
 	{
-		loadTemplate($this->name);
+		global $context;
 
-		// Sub-Sub-actions :P
-		$subActions = array(
-			'enable',
-			'delete',
-			'add',
-			'save',
+		$context['sub_template'] = 'rss_feeder_add';
+
+		// Load the boards and categories for adding or editing a feed.
+		$request = $this->smcFunc['db_query']('', '
+			SELECT b.id_board, b.name, b.child_level, c.name AS cat_name, c.id_cat
+			FROM {db_prefix}boards AS b
+				LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)',
+			array()
 		);
-
-		// A feed ID is going to be used a lot so better set this right now, 0 for adding a new feed.
-		$this->feedID = $this->validate('feed') ? $this->data('feed') ? 0;
-
-		if($this->validate('do') && isset($subActions[$this->data('do')]))
+		$context['categories'] = array();
+		while ($row = $this->smcFunc['db_fetch_assoc']($request))
 		{
-			// Add the "Feed" part.
-			$call = $subActions[$this->data('do')] . 'Feed';
-			$this->$call();
+			if (!isset($context['categories'][$row['id_cat']]))
+				$context['categories'][$row['id_cat']] = array (
+					'name' => strip_tags($row['cat_name']),
+					'boards' => array(),
+				);
+
+			$context['categories'][$row['id_cat']]['boards'][] = array(
+				'id' => $row['id_board'],
+				'name' => strip_tags($row['name']),
+				'category' => strip_tags($row['cat_name']),
+				'child_level' => $row['child_level'],
+				'selected' => !empty($_SESSION['move_to_topic']) && $_SESSION['move_to_topic'] == $row['id_board'] && $row['id_board'] != $board,
+			);
+		}
+		$this->smcFunc['db_free_result']($request);
+
+		if (empty($context['categories']))
+			fatal_lang_error('RssFeed_feed_no_boards', false);
+
+		// If we're just adding a feed, we can return, don't need to do anything further
+		if ($this->feedID)
+		{
+			// Lets get the feed from the database
+			$request = $this->smcFunc['db_query']('', '
+				SELECT *
+				FROM {db_prefix}rssfeeds
+				WHERE id_feed = {int:feed}
+				LIMIT 1',
+				array(
+					'feed' => $this->feedID,
+				)
+			);
+
+			// No Feed?? ut oh... hacker!!
+			if ($this->smcFunc['db_num_rows']($request) != 1)
+				fatal_lang_error('RssFeed_feed_not_found', false);
+			$context['rss_feed'] = $this->smcFunc['db_fetch_assoc']($request);
+			$context['rss_feed'] = htmlspecialchars__recursive($context['rss_feed']);
+			$this->smcFunc['db_free_result']($request);
 		}
 
-		// Nope?  then show some much needed settings.
-		else
-			$this->listFeed();
+		$context['icon'] = !empty($context['rss_feed']['icon']) ? $context['rss_feed']['icon'] : 'xx';
+
+		require_once($this->sourceDir . '/Subs-Editor.php');
+
+		// Message icons - customized icons are off?
+		$context['icons'] = getMessageIcons(!empty($context['rss_feed']['id_board']) ? $context['rss_feed']['id_board'] : 0);
+
+		if (!empty($context['icons']))
+			$context['icons'][count($context['icons']) - 1]['is_last'] = true;
+
+		$context['icon_url'] = '';
+		for ($i = 0, $n = count($context['icons']); $i < $n; $i++)
+		{
+			$context['icons'][$i]['selected'] = $context['icon'] == $context['icons'][$i]['value'];
+			if ($context['icons'][$i]['selected'])
+				$context['icon_url'] = $context['icons'][$i]['url'];
+		}
+		if (empty($context['icon_url']))
+		{
+			$context['icon_url'] = $this->settings[file_exists($this->settings['theme_dir'] . '/images/post/' . $context['icon'] . '.gif') ? 'images_url' : 'default_images_url'] . '/post/' . $context['icon'] . '.gif';
+			array_unshift($context['icons'], array(
+				'value' => $context['icon'],
+				'name' => $txt['current_icon'],
+				'url' => $context['icon_url'],
+				'is_last' => empty($context['icons']),
+				'selected' => true,
+			));
+		}
 	}
 
 	public function listFeed()
 	{
+		global $context;
+
 		// If they deleted or saved, let's show the main list
 		$context['sub_template'] = 'rss_feeder_list';
-
-		// Get the feed's total count.
-		$context['Feed']['count'] = $this->countFeed();
 
 		// Quick trick for PHP < 5.4.
 		$that = $this;
@@ -116,9 +169,9 @@ class RssFeed extends Suki\Ohara
 			'items_per_page' => 10,
 			'default_sort_col' => 'icon',
 			'base_href' => $this->scriptUrl . '?action=admin;area=modsettings;sa=rssfeeds',
-			'no_items_label' => $this->text('feed_none'),
+			'no_items_label' => $this->text('none'),
 			'get_items' => array(
-				'function' => function ($start, $items_per_page, $sort)
+				'function' => function ($start, $items_per_page, $sort) use ($that)
 				{
 					$request = $that->smcFunc['db_query']('', '
 						SELECT f.id_feed, b.name, f.title, f.feedurl, f.enabled, f.importcount, f.updatetime
@@ -133,13 +186,14 @@ class RssFeed extends Suki\Ohara
 					$feeds = array();
 					while ($row = $that->smcFunc['db_fetch_assoc']($request))
 						$feeds[] = $row;
+
 					$that->smcFunc['db_free_result']($request);
 
 					return $feeds;
 				},
 			),
 			'get_count' => array(
-				'function' => function()
+				'function' => function() use ($that)
 				{
 					$request = $that->smcFunc['db_query']('', '
 						SELECT COUNT(*)
@@ -156,7 +210,7 @@ class RssFeed extends Suki\Ohara
 			'columns' => array(
 				'icon' => array(
 					'header' => array(
-						'value' => $txt['rss_feed_enabled'],
+						'value' => $this->text('feed_enabled'),
 					),
 					'data' => array(
 						'function' => function ($rowData) use($that)
@@ -173,7 +227,7 @@ class RssFeed extends Suki\Ohara
 								);
 
 								// Log an error about the issue, just so the user can see why their feed was disabled...
-								log_error($that->text('rss_feeder') . ': ' . $rowData['title'] . ' (' . $that->text('board_error') . ')');
+								log_error($that->text('menu_name') . ': ' . $rowData['title'] . ' (' . $that->text('board_error') . ')');
 
 								$rowData['enabled'] = 0;
 							}
@@ -189,7 +243,7 @@ class RssFeed extends Suki\Ohara
 				),
 				'title' => array(
 					'header' => array(
-						'value' => $txt['rss_feed_title'],
+						'value' => $this->text('feed_title'),
 					),
 					'data' => array(
 						'sprintf' => array(
@@ -213,7 +267,7 @@ class RssFeed extends Suki\Ohara
 					'data' => array(
 						'function' => function ($rowData) use($that)
 						{
-							return empty($rowData['name']) ? '<em><< ' . $that->('board_error') . ' >></em>' : $rowData['name'];
+							return empty($rowData['name']) ? '<em><< ' . $that->text('board_error') . ' >></em>' : $rowData['name'];
 						},
 						'style' => 'text-align: center;',
 					),
@@ -315,8 +369,6 @@ class RssFeed extends Suki\Ohara
 				'feed_list' => $this->data('toDelete'),
 			)
 		);
-
-		// Some session stuff here...
 	}
 
 	public function enableFeed($feed = false, $enable = '')
@@ -333,98 +385,6 @@ class RssFeed extends Suki\Ohara
 				'feed' => $this->feedID,
 			)
 		);
-
-		// Some session stuff here...
-	}
-
-	public function addFeed()
-	{
-		global $context, $this->smcFunc, $sourcedir;
-
-		// Set the appropriated sub template.
-		$context['sub_template'] = 'rss_feed_add';
-
-		// Load the boards and categories for adding or editing a feed.
-		$request = $this->smcFunc['db_query']('', '
-			SELECT b.id_board, b.name, b.child_level, c.name AS cat_name, c.id_cat
-			FROM {db_prefix}boards AS b
-				LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)',
-			array()
-		);
-
-		$context['categories'] = array();
-
-		while ($row = $this->smcFunc['db_fetch_assoc']($request))
-		{
-			if (!isset($context['categories'][$row['id_cat']]))
-				$context['categories'][$row['id_cat']] = array (
-					'name' => strip_tags($row['cat_name']),
-					'boards' => array(),
-				);
-
-			$context['categories'][$row['id_cat']]['boards'][] = array(
-				'id' => $row['id_board'],
-				'name' => strip_tags($row['name']),
-				'category' => strip_tags($row['cat_name']),
-				'child_level' => $row['child_level'],
-				'selected' => !empty($_SESSION['move_to_topic']) && $_SESSION['move_to_topic'] == $row['id_board'] && $row['id_board'] != $board,
-			);
-		}
-		$this->smcFunc['db_free_result']($request);
-
-		if (empty($context['categories']))
-			fatal_lang_error('rss_feed_no_boards', false);
-
-		// If we're just adding a feed, we can return, don't need to do anything further
-		if (!isset($_REQUEST['add']))
-		{
-			// Lets get the feed from the database
-			$request = $this->smcFunc['db_query']('', '
-				SELECT *
-				FROM {db_prefix}rssfeeds
-				WHERE id_feed = {int:feed}
-				LIMIT 1',
-				array(
-					'feed' => $this->data->('feed'),
-				)
-			);
-
-			// No Feed?? ut oh... hacker!!
-			if ($this->smcFunc['db_num_rows']($request) != 1)
-				fatal_lang_error('rss_feed_not_found', false);
-
-			$context['rss_feed'] = $this->smcFunc['db_fetch_assoc']($request);
-			$context['rss_feed'] = htmlspecialchars__recursive($context['rss_feed']);
-			$this->smcFunc['db_free_result']($request);
-		}
-
-		$context['icon'] = !empty($context['rss_feed']['icon']) ? $context['rss_feed']['icon'] : 'xx';
-
-		require_once($sourcedir . '/Subs-Editor.php');
-		// Message icons - customized icons are off?
-		$context['icons'] = getMessageIcons(!empty($context['rss_feed']['id_board']) ? $context['rss_feed']['id_board'] : 0);
-
-		if (!empty($context['icons']))
-			$context['icons'][count($context['icons']) - 1]['is_last'] = true;
-
-		$context['icon_url'] = '';
-		for ($i = 0, $n = count($context['icons']); $i < $n; $i++)
-		{
-			$context['icons'][$i]['selected'] = $context['icon'] == $context['icons'][$i]['value'];
-			if ($context['icons'][$i]['selected'])
-				$context['icon_url'] = $context['icons'][$i]['url'];
-		}
-		if (empty($context['icon_url']))
-		{
-			$context['icon_url'] = $settings[file_exists($settings['theme_dir'] . '/images/post/' . $context['icon'] . '.gif') ? 'images_url' : 'default_images_url'] . '/post/' . $context['icon'] . '.gif';
-			array_unshift($context['icons'], array(
-				'value' => $context['icon'],
-				'name' => $txt['current_icon'],
-				'url' => $context['icon_url'],
-				'is_last' => empty($context['icons']),
-				'selected' => true,
-			));
-		}
 	}
 
 	public function saveFeed()
@@ -437,7 +397,7 @@ class RssFeed extends Suki\Ohara
 
 		// Let's do the 'unrequireds' first...
 		$insertOptions['id_board'] = (int)$_POST['feed_board'];
-		$insertOptions['icon'] = isset($_POST['icon']) ? preg_replace('~[\./\\\\*':"<>]~', '', $_POST['icon']) : 'xx';
+		$insertOptions['icon'] = isset($_POST['icon']) ? $_POST['icon'] : 'xx';
 		$insertOptions['enabled'] = isset($_POST['feed_enabled']) ? 1 : 0;
 		$insertOptions['keywords'] = trim($_POST['feed_keywords']) != '' ? trim($_POST['feed_keywords']) : '';
 		$insertOptions['locked'] = isset($_POST['feed_locked']) ? 1 : 0;
