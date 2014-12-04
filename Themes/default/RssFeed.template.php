@@ -32,7 +32,7 @@ function template_rss_feeder_add()
 	global $context, $txt, $settings, $scripturl, $modSettings;
 
 	echo '
-				<form name="postmodify" action="', $scripturl, '?action=admin;area=modsettings;sa=rssfeeds" method="post" accept-charset="ISO-8859-1">
+				<form name="postmodify" action="', $scripturl, '?action=admin;area=RssFeed;sa=add;do=save" method="post" accept-charset="ISO-8859-1">
 					<div class="title_bar">
 						<h3 class="titlebg">', $txt['RssFeed_feed_add'], '</h3>
 					</div>
@@ -166,8 +166,7 @@ function template_rss_feeder_add()
 						</dl>
 						<p class="confirm_buttons">
 							<input class="button_submit" type="submit" name="save" value="', $txt['save'], '" />
-							<input type="hidden" name="', $context['session_var'], '" value="', $context['session_id'], '" />',
-							!empty($_REQUEST['feed']) ? '<input type="hidden" name="feed_id" value="' . $_REQUEST['feed'] . '" />' : '', '
+							<input type="hidden" name="', $context['session_var'], '" value="', $context['session_id'], '" />
 						</p>
 					</div>
 					<span class="lowerframe"><span></span></span>

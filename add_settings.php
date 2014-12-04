@@ -1,18 +1,13 @@
 <?php
-/*******************************************************************************
-	This is a simplified script to add settings into SMF.
 
-	ATTENTION: If you are trying to INSTALL this package, please access
-	it directly, with a URL like the following:
-		http://www.yourdomain.tld/forum/add_settings.php (or similar.)
+/**
+ * @package RssFeed mod
+ * @version 1.0
+ * @author Jessica González <suki@missallsunday.com>
+ * @copyright Copyright (c) 2014, Jessica González
+ * @license http://www.mozilla.org/MPL/2.0/
+ */
 
-================================================================================
-
-	This script can be used to add new settings into the database for use
-	with SMF's $modSettings array.  It is meant to be run either from the
-	package manager or directly by URL.
-
-*******************************************************************************/
 
 // List settings here in the format: setting_key => default_value.  Escape any "s. (" => \")
 $mod_settings = array();
@@ -240,8 +235,9 @@ $rows[] = array(
 		'time_unit' => 'string',
 		'disabled' => 'int',
 		'task' => 'string',
+		'callable' => 'string',
 	),
-	'data' => array (1231542000, 126000, 6, 'h', 0, 'rss_feeder'),
+	'data' => array (1231542000, 126000, 6, 'h', 0, 'rss_feeder', 'RssFeed.php|RssFeed::task#'),
 	'keys' => array('id_task'),
 );
 
