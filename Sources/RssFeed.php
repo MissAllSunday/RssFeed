@@ -45,7 +45,7 @@ class RssFeed extends Suki\Ohara
 		loadTemplate($this->name);
 
 		// A feed ID is going to be used a lot so better set this right now, 0 for adding a new feed.
-		$this->feedID = $this->validate('feed') ? $this->data('feed') : 0;
+		$this->feedID = $this->validate('feedID') ? $this->data('feedID') : 0;
 
 		$context['page_title'] = $this->text('menu_name');
 
@@ -74,9 +74,21 @@ class RssFeed extends Suki\Ohara
 		if ($this->data('do') && $this->data('do') == 'save')
 			return $this->saveFeed();
 
+		$context['fields'] = array(
+			'enabled' => array('type' => 'check'),
+			'title' => array('type' => 'text'),
+			'url' => array('type' => 'text'),
+			'poster' => array('type' => 'text'),
+			'prefix' => array('type' => 'text'),
+			'import' => array('type' => 'text'),
+			'keywords' => array('type' => 'text'),
+			'locked' => array('type' => 'check'),
+			'single' => array('type' => 'check'),
+		);
+
 		// Any errors?
-		$context['rss_feed'] = $this->getMessage('data');
-		$context['feed_errors'] = $this->getMessage('errors');
+		$context['feed'] = $this->getMessage('data');
+		$context['errors'] = $this->getMessage('errors');
 
 		$context['sub_template'] = 'rss_feeder_add';
 
@@ -127,17 +139,17 @@ class RssFeed extends Suki\Ohara
 			if ($this->smcFunc['db_num_rows']($request) != 1)
 				fatal_lang_error('RssFeed_feed_not_found', false);
 
-			$context['rss_feed'] = $this->smcFunc['db_fetch_assoc']($request);
-			$context['rss_feed'] = htmlspecialchars__recursive($context['rss_feed']);
+			$context['feed'] = $this->smcFunc['db_fetch_assoc']($request);
+			$context['feed'] = htmlspecialchars__recursive($context['feed']);
 			$this->smcFunc['db_free_result']($request);
 		}
 
-		$context['icon'] = !empty($context['rss_feed']['icon']) ? $context['rss_feed']['icon'] : 'xx';
+		$context['icon'] = !empty($context['feed']['icon']) ? $context['feed']['icon'] : 'xx';
 
 		require_once($this->sourceDir . '/Subs-Editor.php');
 
 		// Message icons - customized icons are off?
-		$context['icons'] = getMessageIcons(!empty($context['rss_feed']['id_board']) ? $context['rss_feed']['id_board'] : 0);
+		$context['icons'] = getMessageIcons(!empty($context['feed']['id_board']) ? $context['feed']['id_board'] : 0);
 
 		if (!empty($context['icons']))
 			$context['icons'][count($context['icons']) - 1]['is_last'] = true;
@@ -166,8 +178,10 @@ class RssFeed extends Suki\Ohara
 	{
 		global $context;
 
-		// If they deleted or saved, let's show the main list
 		$context['sub_template'] = 'rss_feeder_list';
+
+		// Any message?
+		$context['feed_message'] = $this->getMessage('message');
 
 		// Quick trick for PHP < 5.4.
 		$that = $this;
@@ -241,7 +255,7 @@ class RssFeed extends Suki\Ohara
 								$rowData['enabled'] = 0;
 							}
 
-							return '<a href="' . $that->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds;feed=' . $rowData['id_feed'] . ($rowData['enabled'] ? ';disable' : ';enable') . '"><img src="' . $that->settings['images_url'] . ($rowData['enabled'] ? '/rss_enabled.gif' : '/rss_disabled.gif') . '" alt="*" /></a>';
+							return '<a href="' . $that->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds;feedID=' . $rowData['id_feed'] . ($rowData['enabled'] ? ';disable' : ';enable') . '"><img src="' . $that->settings['images_url'] . ($rowData['enabled'] ? '/rss_enabled.gif' : '/rss_disabled.gif') . '" alt="*" /></a>';
 						},
 						'style' => 'text-align: center; width: 130px;',
 					),
@@ -322,7 +336,7 @@ class RssFeed extends Suki\Ohara
 					),
 					'data' => array(
 						'sprintf' => array(
-							'format' => '<a href="' . $this->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds;feed=%1$d">' . $this->text('feed_modify') . '</a>',
+							'format' => '<a href="' . $this->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds;feedID=%1$d">' . $this->text('feed_modify') . '</a>',
 							'params' => array(
 								'id_feed' => false,
 							),
@@ -367,6 +381,9 @@ class RssFeed extends Suki\Ohara
 
 		require_once($this->sourceDir . '/Subs-List.php');
 		createList($listOptions);
+
+		// No longer needed.
+		unset($that);
 	}
 
 	public function deleteFeed()
@@ -398,42 +415,47 @@ class RssFeed extends Suki\Ohara
 
 	public function saveFeed()
 	{
-		// First we check the session...
+		// Check the session.
 		checkSession();
 
-		// Put the insert array together...
-		$insertOptions = array();
+		// By default everything is blank.
+		$insertOptions = array(
+			'enabled' => 0,
+			'title' => '',
+			'url' => '',
+			'poster' => '',
+			'prefix' => '',
+			'import' => '',
+			'keywords' => '',
+			'locked' => 0,
+			'single' => 0,
+			'icon' => '',
+			'board' => 0,
+			'full' => 0,
+			'regex' => '',
+			'footer' => '',
+		);
 
-		// Let's do the 'unrequireds' first...
-		$insertOptions['id_board'] = $this->data('feed_board');
-		$insertOptions['icon'] = $this->data('icon') ? preg_replace('~[\./\\\\*\':"<>]~', '', $this->data('icon')) : 'xx';
-		$insertOptions['enabled'] = $this->data('feed_enabled') ? $this->data('feed_enabled') : 0;
-		$insertOptions['keywords'] = $this->data('feed_keywords') ? $this->data('feed_keywords') : '';
-		$insertOptions['locked'] = $this->data('feed_locked') ? 1 : 0;
-		$insertOptions['getfull'] = $this->data('feed_full') ? 1 : 0;
-		$insertOptions['approve'] = $this->data('feed_approve') ? 1 : 0;
-		$insertOptions['singletopic'] = $this->data('feed_singletopic') ? 1 : 0;
-		$insertOptions['topicprefix'] = $this->data('feed_prefix') ? $this->data('feed_prefix') : '';
-		$insertOptions['footer'] = $this->data('feed_footer') ? $this->data('feed_footer') : '';
-		$insertOptions['numbertoimport'] = $this->data('feed_import') ? $this->data('feed_import') : 0;
+		// Get the data.
+		$insertOptions = $this->data('feed');
 
-		$context['feed_errors'] = array();
+		$context['errors'] = array();
 
-		// And now the requireds that we can throw errors on...
-		if (!$this->data('feed_title'))
-			$context['feed_errors']['feed_title'] = ($insertOptions['title'] = '');
+		// And now the required that we can throw errors on...
+		if (!$insertOptions['title'])
+			$context['errors']['title'] = ($insertOptions['title'] = '');
 
 		else
-			$insertOptions['title'] = preg_replace('~[&]([^;]{8}|[^;]{0,8}$)~', '&amp;$1', $this->data('feed_title'));
+			$insertOptions['title'] = preg_replace('~[&]([^;]{8}|[^;]{0,8}$)~', '&amp;$1', $insertOptions['title']);
 
-		if (!$this->data('feed_url'))
-			$context['feed_errors']['feed_url'] = ($insertOptions['feedurl'] = '');
+		if (!$insertOptions['url'])
+			$context['errors']['url'] = ($insertOptions['url'] = '');
 
 		else
-			$insertOptions['feedurl'] = $this->data('feed_url');
+			$insertOptions['url'] = $this->data('url');
 
-		if (!$this->data('feed_poster'))
-			$context['feed_errors']['feed_poster'] = ($insertOptions['postername'] = '');
+		if (!$insertOptions['poster'])
+			$context['errors']['poster'] = ($insertOptions['poster'] = '');
 
 		// Do a query to get the member's id
 		else
@@ -445,34 +467,34 @@ class RssFeed extends Suki\Ohara
 					OR member_name = {string:name}
 				LIMIT 1',
 				array(
-					'name' => $this->data('feed_poster'),
+					'name' => $insertOptions['poster'],
 				)
 			);
+
 			if ($this->smcFunc['db_num_rows']($request) != 1)
-				$context['feed_errors']['feed_poster'] = ($insertOptions['postername'] = $this->data('feed_poster'));
+				$context['errors']['poster'] = ($insertOptions['poster'] = '');
+
 			else
 			{
-				$insertOptions['postername'] = $this->data('feed_poster');
 				list($insertOptions['id_member']) = $this->smcFunc['db_fetch_row']($request);
 			}
 			$this->smcFunc['db_free_result']($request);
 		}
 
-		$insertOptions['regex'] = $this->data('feed_regex') ? $this->data('feed_regex') : '';
-		if (!empty($insertOptions['getfull']) && empty($insertOptions['regex']))
-			$context['feed_errors']['feed_regex'] = '';
+		if (!empty($insertOptions['full']) && empty($insertOptions['regex']))
+			$context['errors']['feed_regex'] = '';
 
 		// if we had any errors, lets kick back a screen and highlight them...
-		if (!empty($context['feed_errors']))
+		if (!empty($context['errors']))
 		{
-			$this->setMessage('errors', $context['feed_errors']);
+			$this->setMessage('errors', $context['errors']);
 			$this->setMessage('data', $insertOptions);
-			redirectexit('action=admin;area=RssFeed;sa=add'. ($this->feedID ? ';feed='. $this->feedID : ''));
+			redirectexit('action=admin;area=RssFeed;sa=add'. ($this->feedID ? ';feedID='. $this->feedID : ''));
 		}
 
 		// Looks like we're good.
 		// Modifying an existing feed?
-		if (!empty($_REQUEST['feed_id']))
+		if ($this->feedID)
 		{
 			$this->smcFunc['db_query']('','
 				UPDATE {db_prefix}rssfeeds
@@ -494,15 +516,30 @@ class RssFeed extends Suki\Ohara
 					footer = {string:footer},
 					numbertoimport = {int:numbertoimport}
 				WHERE id_feed = {int:id_feed}',
-				array_merge(array('id_feed' => (int)$_REQUEST['feed_id']), $insertOptions)
+				array_merge(array('id_feed' => $this->feedID), $insertOptions)
 			);
-			$context['feed_insert_success'] = $txt['rss_feed_update_success'];
+			$this->setMessage('message', array('update' => 'info');
 		}
 		// Or I guess we're inserting a new one
 		else
 		{
-			// Fix up the stuff for insertion, make sure the arrays are aligned
-			$insertRows = array( 'singletopic' => 'int', 'icon' => 'string', 'footer' => 'string', 'getfull' => 'int', 'id_board' => 'int', 'feedurl' => 'string', 'title' => 'string', 'enabled' => 'int', 'postername' => 'string', 'id_member' => 'int', 'keywords' => 'string', 'regex' => 'string', 'locked' => 'int', 'approve' => 'int', 'topicprefix' => 'string', 'numbertoimport' => 'int' );
+			// Fix up the stuff for insertion, make sure the arrays are aligned.
+			$insertRows = array(
+			'enabled' => 'int',
+			'title' => 'string',
+			'url' => 'string',
+			'poster' => 'string',
+			'prefix' => 'string',
+			'import' => 'string',
+			'keywords' => 'string',
+			'locked' => 'int',
+			'single' => 'int',
+			'icon' => 'string',
+			'board' => 'int',
+			'full' => 'int',
+			'regex' => 'string',
+			'footer' => 'string',
+		);
 			ksort($insertRows);
 			ksort($insertOptions);
 
@@ -513,11 +550,12 @@ class RssFeed extends Suki\Ohara
 				array('id_feed')
 			);
 			$id_feed = $this->smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
-			if (empty($id_feed))
-				$context['feed_insert_error'] = $txt['rss_feed_insert_error'];
-			else
-				$context['feed_insert_success'] = $txt['rss_feed_insert_success'];
+
+			$this->setMessage('message', array('insert' => (empty($id_feed) ? 'error' : 'info'));
 		}
+
+		// Either way, redirect back to the list page.
+		redirectexit('action=admin;area=RssFeed');
 	}
 
 	public function ScheduledTask()
