@@ -13,7 +13,7 @@ function template_rss_feeder_list()
 	global $context, $txt;
 
 	// Post a message if there is any.
-	if (!empty($context['feed_message'])
+	if (!empty($context['feed_message']))
 		foreach ($context['feed_message'] as $action => $message)
 			echo '
 				<div class="', $message ,'box">
@@ -36,7 +36,7 @@ function template_rss_feeder_add()
 
 	if (!empty($context['errors']))
 		echo '
-						<div class="windowbg" id="profile_error">
+						<div class="errorbox">
 							', $txt['RssFeed_feed_add_error'], '
 						</div>';
 
@@ -92,7 +92,7 @@ function template_rss_feeder_add()
 								<strong>', $txt['board'], '</strong>
 							</dt>
 							<dd>
-								<select name="feed[board]">';
+								<select name="feed[id_board]">';
 
 	foreach ($context['categories'] as $category)
 	{

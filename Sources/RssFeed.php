@@ -437,7 +437,7 @@ class RssFeed extends Suki\Ohara
 		);
 
 		// Get the data.
-		$insertOptions = $this->data('feed');
+		$insertOptions = array_merge($insertOptions, $this->data('feed'));
 
 		$context['errors'] = array();
 
@@ -450,9 +450,6 @@ class RssFeed extends Suki\Ohara
 
 		if (!$insertOptions['url'])
 			$context['errors']['url'] = ($insertOptions['url'] = '');
-
-		else
-			$insertOptions['url'] = $this->data('url');
 
 		if (!$insertOptions['poster'])
 			$context['errors']['poster'] = ($insertOptions['poster'] = '');
@@ -482,7 +479,7 @@ class RssFeed extends Suki\Ohara
 		}
 
 		if (!empty($insertOptions['full']) && empty($insertOptions['regex']))
-			$context['errors']['feed_regex'] = '';
+			$context['errors']['regex'] = ($insertOptions['regex'] = '');
 
 		// if we had any errors, lets kick back a screen and highlight them...
 		if (!empty($context['errors']))
@@ -499,26 +496,26 @@ class RssFeed extends Suki\Ohara
 			$this->smcFunc['db_query']('','
 				UPDATE {db_prefix}rssfeeds
 				SET
-					id_board = {int:id_board},
-					feedurl = {string:feedurl},
+					board = {int:board},
+					url = {string:url},
 					title = {string:title},
 					icon = {string:icon},
 					enabled = {int:enabled},
-					postername = {string:postername},
+					poster = {string:poster},
 					id_member = {int:id_member},
 					keywords = {string:keywords},
 					regex = {string:regex},
 					locked = {int:locked},
 					getfull = {int:getfull},
-					approve = {int:approve},
-					singletopic = {int:singletopic},
-					topicprefix = {string:topicprefix},
+					enabled = {int:enabled},
+					single = {int:single},
+					prefix = {string:prefix},
 					footer = {string:footer},
-					numbertoimport = {int:numbertoimport}
+					import = {int:import}
 				WHERE id_feed = {int:id_feed}',
 				array_merge(array('id_feed' => $this->feedID), $insertOptions)
 			);
-			$this->setMessage('message', array('update' => 'info');
+			$this->setMessage('message', array('update' => 'info'));
 		}
 		// Or I guess we're inserting a new one
 		else
@@ -543,6 +540,8 @@ class RssFeed extends Suki\Ohara
 			ksort($insertRows);
 			ksort($insertOptions);
 
+
+die;
 			$this->smcFunc['db_insert']('',
 				'{db_prefix}rssfeeds',
 				$insertRows,
@@ -551,11 +550,11 @@ class RssFeed extends Suki\Ohara
 			);
 			$id_feed = $this->smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
 
-			$this->setMessage('message', array('insert' => (empty($id_feed) ? 'error' : 'info'));
+			$this->setMessage('message', array('insert' => (empty($id_feed) ? 'error' : 'info')));
 		}
 
 		// Either way, redirect back to the list page.
-		redirectexit('action=admin;area=RssFeed');
+		redirectexit('action=admin;area=RssFeed;sa=list');
 	}
 
 	public function ScheduledTask()
