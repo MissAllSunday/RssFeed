@@ -77,13 +77,13 @@ class RssFeed extends Suki\Ohara
 		$context['fields'] = array(
 			'enabled' => array('type' => 'check'),
 			'title' => array('type' => 'text'),
-			'url' => array('type' => 'text'),
-			'poster' => array('type' => 'text'),
-			'prefix' => array('type' => 'text'),
-			'import' => array('type' => 'text'),
+			'feedurl' => array('type' => 'text'),
+			'postername' => array('type' => 'text'),
+			'topicprefix' => array('type' => 'text'),
+			'numbertoimport' => array('type' => 'text'),
 			'keywords' => array('type' => 'text'),
 			'locked' => array('type' => 'check'),
-			'single' => array('type' => 'check'),
+			'singletopic' => array('type' => 'check'),
 		);
 
 		// Any errors?
@@ -422,16 +422,16 @@ class RssFeed extends Suki\Ohara
 		$insertOptions = array(
 			'enabled' => 0,
 			'title' => '',
-			'url' => '',
-			'poster' => '',
-			'prefix' => '',
-			'import' => '',
+			'feedurl' => '',
+			'postername' => '',
+			'topicprefix' => '',
+			'numbertoimport	' => '',
 			'keywords' => '',
 			'locked' => 0,
-			'single' => 0,
+			'singletopic' => 0,
 			'icon' => '',
-			'board' => 0,
-			'full' => 0,
+			'id_board' => 0,
+			'getfull' => 0,
 			'regex' => '',
 			'footer' => '',
 		);
@@ -448,11 +448,11 @@ class RssFeed extends Suki\Ohara
 		else
 			$insertOptions['title'] = preg_replace('~[&]([^;]{8}|[^;]{0,8}$)~', '&amp;$1', $insertOptions['title']);
 
-		if (!$insertOptions['url'])
-			$context['errors']['url'] = ($insertOptions['url'] = '');
+		if (!$insertOptions['feedurl'])
+			$context['errors']['feedurl'] = ($insertOptions['feedurl'] = '');
 
-		if (!$insertOptions['poster'])
-			$context['errors']['poster'] = ($insertOptions['poster'] = '');
+		if (!$insertOptions['postername'])
+			$context['errors']['postername'] = ($insertOptions['postername'] = '');
 
 		// Do a query to get the member's id
 		else
@@ -464,12 +464,12 @@ class RssFeed extends Suki\Ohara
 					OR member_name = {string:name}
 				LIMIT 1',
 				array(
-					'name' => $insertOptions['poster'],
+					'name' => $insertOptions['postername'],
 				)
 			);
 
 			if ($this->smcFunc['db_num_rows']($request) != 1)
-				$context['errors']['poster'] = ($insertOptions['poster'] = '');
+				$context['errors']['poster'] = ($insertOptions['postername'] = '');
 
 			else
 			{
@@ -478,7 +478,7 @@ class RssFeed extends Suki\Ohara
 			$this->smcFunc['db_free_result']($request);
 		}
 
-		if (!empty($insertOptions['full']) && empty($insertOptions['regex']))
+		if (!empty($insertOptions['getfull']) && empty($insertOptions['regex']))
 			$context['errors']['regex'] = ($insertOptions['regex'] = '');
 
 		// if we had any errors, lets kick back a screen and highlight them...
@@ -496,22 +496,22 @@ class RssFeed extends Suki\Ohara
 			$this->smcFunc['db_query']('','
 				UPDATE {db_prefix}rssfeeds
 				SET
-					board = {int:board},
-					url = {string:url},
+					id_board = {int:id_board},
+					feedurl = {string:feedurl},
 					title = {string:title},
 					icon = {string:icon},
 					enabled = {int:enabled},
-					poster = {string:poster},
+					postername = {string:postername},
 					id_member = {int:id_member},
 					keywords = {string:keywords},
 					regex = {string:regex},
 					locked = {int:locked},
 					getfull = {int:getfull},
 					enabled = {int:enabled},
-					single = {int:single},
-					prefix = {string:prefix},
+					singletopic = {int:singletopic},
+					topicprefix = {string:topicprefix},
 					footer = {string:footer},
-					import = {int:import}
+					numbertoimport = {int:numbertoimport}
 				WHERE id_feed = {int:id_feed}',
 				array_merge(array('id_feed' => $this->feedID), $insertOptions)
 			);
@@ -524,24 +524,22 @@ class RssFeed extends Suki\Ohara
 			$insertRows = array(
 			'enabled' => 'int',
 			'title' => 'string',
-			'url' => 'string',
-			'poster' => 'string',
-			'prefix' => 'string',
-			'import' => 'string',
+			'fedurl' => 'string',
+			'postername' => 'string',
+			'topicprefix' => 'string',
+			'numbertoimport' => 'string',
 			'keywords' => 'string',
 			'locked' => 'int',
-			'single' => 'int',
+			'singletopic' => 'int',
 			'icon' => 'string',
-			'board' => 'int',
-			'full' => 'int',
+			'id_board' => 'int',
+			'getfull' => 'int',
 			'regex' => 'string',
 			'footer' => 'string',
 		);
 			ksort($insertRows);
 			ksort($insertOptions);
 
-
-die;
 			$this->smcFunc['db_insert']('',
 				'{db_prefix}rssfeeds',
 				$insertRows,

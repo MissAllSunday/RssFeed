@@ -112,7 +112,7 @@ function template_rss_feeder_add()
 								<strong>', $txt['RssFeed_feed_full_article'], '</strong>
 							</dt>
 							<dd>
-								<input onchange="refreshOptions();" class="check" type="checkbox" id="feed_full" name="feed[full]" value="1"', !empty($context['feed']['full']) ? ' checked="checked"' : '', ' />
+								<input onchange="refreshOptions();" class="check" type="checkbox" id="feed_full" name="feed[getfull]" value="1"', !empty($context['feed']['full']) ? ' checked="checked"' : '', ' />
 							</dd>
 							<dt id="feed_regex">
 								<strong', (isset($context['errors']['regex'])) ? ' class="error"' : '', '>', $txt['RssFeed_feed_regex'], '</strong><br /><span class="smalltext">', $txt['RssFeed_feed_regex_desc'], '</span>
