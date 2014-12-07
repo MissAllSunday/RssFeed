@@ -28,7 +28,7 @@ function template_rss_feeder_add()
 	global $context, $txt, $settings, $scripturl, $modSettings;
 
 	echo '
-				<form name="postmodify" action="', $scripturl, '?action=admin;area=RssFeed;sa=add;do=save" method="post" accept-charset="ISO-8859-1">
+				<form name="postmodify" action="', $scripturl, '?action=admin;area=RssFeed;sa=add;do=save', (!empty($_REQUEST['feedID']) ? ';feedID='. $_REQUEST['feedID'] : '') ,'" method="post" accept-charset="', $context['character_set'], '">
 					<div class="title_bar">
 						<h3 class="titlebg">', $txt['RssFeed_feed_add'], '</h3>
 					</div>
@@ -139,8 +139,8 @@ function template_rss_feeder_add()
 						sSelf: \'oPosterSuggest\',
 						sSessionId: \'', $context['session_id'], '\',
 						sSessionVar: \'', $context['session_var'], '\',
-						sSuggestId: \'feed_poster\',
-						sControlId: \'feed_poster\',
+						sSuggestId: \'feed_postername\',
+						sControlId: \'feed_postername\',
 						sSearchType: \'member\',
 						bItemList: false,
 					});

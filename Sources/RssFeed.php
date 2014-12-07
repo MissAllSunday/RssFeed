@@ -17,6 +17,7 @@ require_once ($boarddir .'/vendor/autoload.php');
 class RssFeed extends Suki\Ohara
 {
 	public $name = __CLASS__;
+	protected static $feedData;
 
 	public function __construct()
 	{
@@ -122,7 +123,7 @@ class RssFeed extends Suki\Ohara
 			fatal_lang_error('RssFeed_feed_no_boards', false);
 
 		// If we're just adding a feed, we can return, don't need to do anything further
-		if ($this->feedID)
+		if ($this->feedID && empty($context['feed']))
 		{
 			// Lets get the feed from the database
 			$request = $this->smcFunc['db_query']('', '
@@ -177,6 +178,19 @@ class RssFeed extends Suki\Ohara
 	public function listFeed()
 	{
 		global $context;
+
+		$do = array('delete', 'enable');
+
+		// Something to do?
+		if ($this->data('do') && in_array($this->data('do'), $do))
+		{
+			$call = $this->data('do') . 'Feed';
+			$this->$call();
+
+			// Set a proper message and do a redirect. Let use assume everything went fine...
+			$this->setMessage('message', array($this->data('do') => 'info'));
+			return redirectexit('action=admin;area=RssFeed;sa=list');
+		}
 
 		$context['sub_template'] = 'rss_feeder_list';
 
@@ -255,7 +269,7 @@ class RssFeed extends Suki\Ohara
 								$rowData['enabled'] = 0;
 							}
 
-							return '<a href="' . $that->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds;feedID=' . $rowData['id_feed'] . ($rowData['enabled'] ? ';disable' : ';enable') . '"><img src="' . $that->settings['images_url'] . ($rowData['enabled'] ? '/rss_enabled.gif' : '/rss_disabled.gif') . '" alt="*" /></a>';
+							return '<a href="' . $that->scriptUrl . '?action=admin;area=RssFeed;sa=list;feedID=' . $rowData['id_feed'] .';do=enable;enable='. ($rowData['enabled'] ? '0' : '1') . '"><img src="' . $that->settings['images_url'] . ($rowData['enabled'] ? '/rss_enabled.gif' : '/rss_disabled.gif') . '" alt="*" /></a>';
 						},
 						'style' => 'text-align: center; width: 130px;',
 					),
@@ -336,7 +350,7 @@ class RssFeed extends Suki\Ohara
 					),
 					'data' => array(
 						'sprintf' => array(
-							'format' => '<a href="' . $this->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds;feedID=%1$d">' . $this->text('feed_modify') . '</a>',
+							'format' => '<a href="' . $this->scriptUrl . '?action=admin;area=RssFeed;sa=add;feedID=%1$d">' . $this->text('feed_modify') . '</a>',
 							'params' => array(
 								'id_feed' => false,
 							),
@@ -350,7 +364,7 @@ class RssFeed extends Suki\Ohara
 					),
 					'data' => array(
 						'sprintf' => array(
-							'format' => '<input type="checkbox" name="checked_feeds[]" value="%1$d" class="check" />',
+							'format' => '<input type="checkbox" name="toDelete[]" value="%1$d" class="check" />',
 							'params' => array(
 								'id_feed' => false,
 							),
@@ -360,7 +374,7 @@ class RssFeed extends Suki\Ohara
 				),
 			),
 			'form' => array(
-				'href' => $this->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds',
+				'href' => $this->scriptUrl . '?action=admin;area=RssFeed;sa=list;do=delete',
 				'name' => 'rssfeedForm',
 			),
 			'additional_rows' => array(
@@ -425,7 +439,7 @@ class RssFeed extends Suki\Ohara
 			'feedurl' => '',
 			'postername' => '',
 			'topicprefix' => '',
-			'numbertoimport	' => '',
+			'numbertoimport' => 1,
 			'keywords' => '',
 			'locked' => 0,
 			'singletopic' => 0,
@@ -489,6 +503,13 @@ class RssFeed extends Suki\Ohara
 			redirectexit('action=admin;area=RssFeed;sa=add'. ($this->feedID ? ';feedID='. $this->feedID : ''));
 		}
 
+		// Gotta need at least 1 feed to import...
+		if (empty($insertOptions['numbertoimport']))
+			$insertOptions['numbertoimport'] = 1;
+
+		else
+			$insertOptions['numbertoimport'] = (int) $insertOptions['numbertoimport'];
+
 		// Looks like we're good.
 		// Modifying an existing feed?
 		if ($this->feedID)
@@ -524,7 +545,7 @@ class RssFeed extends Suki\Ohara
 			$insertRows = array(
 			'enabled' => 'int',
 			'title' => 'string',
-			'fedurl' => 'string',
+			'feedurl' => 'string',
 			'postername' => 'string',
 			'topicprefix' => 'string',
 			'numbertoimport' => 'string',
@@ -533,6 +554,7 @@ class RssFeed extends Suki\Ohara
 			'singletopic' => 'int',
 			'icon' => 'string',
 			'id_board' => 'int',
+			'id_member' => 'int',
 			'getfull' => 'int',
 			'regex' => 'string',
 			'footer' => 'string',
@@ -555,8 +577,216 @@ class RssFeed extends Suki\Ohara
 		redirectexit('action=admin;area=RssFeed;sa=list');
 	}
 
-	public function ScheduledTask()
+	public function task()
 	{
+		global $cachedir, $modSettings, $context, $txt;
 
+		// Adjust the timeout value... who knows how many feeds we have and how many items we're getting
+		// If this whole thing can't run in 5 minutes, we've got issues, and I'm sure the host would complain...
+		@set_time_limit(300);
+		if (function_exists('apache_reset_timeout'))
+			apache_reset_timeout();
+
+		loadEssentialThemeData();
+		$context['character_set'] = empty($modSettings['global_character_set']) ? $txt['lang_character_set'] : $modSettings['global_character_set'];
+
+		// Create the instance.
+		static::$feedData = new SimplePie();
+
+		// Lets do this....
+		// First grab all of the enabled feeds...
+		$request = $this->smcFunc['db_query']('', '
+			SELECT f.id_feed, f.id_board, t.id_topic, f.icon, f.feedurl, f.postername, f.id_member, f.keywords, f.getfull, f.regex, f.locked, f.approve, f.singletopic, f.topicprefix, f.footer, f.numbertoimport
+			FROM {db_prefix}rssfeeds as f
+				LEFT JOIN {db_prefix}topics as t ON (t.id_topic = f.id_topic)
+				INNER JOIN {db_prefix}boards as b ON (b.id_board = f.id_board)
+			WHERE enabled = 1',
+			array()
+		);
+
+		$feed_list = array();
+		while ($row = $this->smcFunc['db_fetch_assoc']($request))
+			$feed_list[$row['id_feed']] = array(
+				'board_id' => $row['id_board'],
+				'topic_id' => empty($row['singletopic']) ? 0 : (empty($row['id_topic']) ? 0 : $row['id_topic']),
+				'url' => $row['feedurl'],
+				'icon' => $row['icon'],
+				'poster_name' => $row['postername'],
+				'poster_id' => $row['id_member'],
+				'keywords' => array_filter(explode(',', $row['keywords']), 'trim'),
+				'full_article' => $row['getfull'],
+				'regex' => $row['regex'],
+				'lock_topic' => $row['locked'],
+				'require_approval' => $row['approve'] && $modSettings['postmod_active'],
+				'single_topic' => $row['singletopic'],
+				'topic_prefix' => $row['topicprefix'],
+				'footer' => $row['footer'],
+				'import_count' => $row['numbertoimport'],
+			);
+		$this->smcFunc['db_free_result']($request);
+
+		require_once($this->sourceDir . '/Subs-Editor.php');
+
+		// We'll just run through each feed now... someone's gonna get a post count increase....
+		foreach ($feed_list as $id => $feed)
+		{
+			static::$feedData->enable_cache(true);
+			static::$feedData->enable_order_by_date(true);
+			static::$feedData->set_cache_location($cachedir);
+			static::$feedData->set_cache_duration(60*60*2); // 2 hours
+			static::$feedData->set_output_encoding($context['character_set']);
+			static::$feedData->strip_htmltags(true);
+			static::$feedData->set_feed_url($feed['url']);
+			static::$feedData->init();
+			// If we don't get a valid chunk of data back, disable the feed
+			if (static::$feedData->error())
+			{
+				$this->smcFunc['db_query']('', '
+					UPDATE {db_prefix}rssfeeds
+					SET enabled = 0
+					WHERE id_feed = {int:feed}',
+					array(
+						'feed' => $id,
+					)
+				);
+
+				// Log an error about the issue, just so the user can see why their feed was disabled...
+				log_error($txt['rss_feeder'] . ': ' . $feed['url'] . ' (' . static::$feedData->error() . ')');
+				continue;
+			}
+
+			// Run through each item in the feed
+			$item_count = 0;
+			foreach (static::$feedData->get_items() as $item)
+			{
+				// Do we have a cap on how many to import?
+				if (!empty($feed['import_count']) && $item_count >= $feed['import_count'])
+					continue 1;
+
+				// If this item doesn't have a link or title, let's skip it
+				if ($item->get_title() === null)
+					continue;
+
+				// OK, so this is a valid item to post about, has it already been logged?
+				$request = $this->smcFunc['db_query']('', '
+					SELECT id_feeditem
+					FROM {db_prefix}log_rssfeeds
+					WHERE id_feed = {int:feed}
+						AND hash = {string:hash}
+					LIMIT 1',
+					array(
+						'feed' => $id,
+						'hash' => md5($item->get_title()),
+					)
+				);
+
+				// It does exist already... skip it
+				if ($this->smcFunc['db_num_rows']($request) != 0)
+					continue;
+
+				// I think it's time to actually post the feed... it has a link, it matched keywords (if we had them), it doesn't already exist...
+				// Should we get the whole feed??
+				$body = $item->get_content() !== null ? $item->get_content() : $item->get_title();
+				$redirect_url = '';
+				if (!empty($feed['full_article']) && $item->get_permalink() !== null)
+				{
+					$full_article = new SimplePie_File($item->get_permalink(), 10, 5, static::$feedData->useragent);
+					if ($full_article->success)
+					{
+						$matches = array();
+						preg_match($feed['regex'], $full_article->body, $matches);
+						$body = !empty($matches[1]) ? $matches[1] : $body;
+						// If we had a redirect, let's update the link so it posts correct in the message
+						if (!empty($full_article->redirects))
+							$redirect_url = $full_article->url;
+					}
+				}
+				// If the body is still empty at this point, no point in posting, so skip this item
+				if (empty($body))
+					continue;
+
+				// We're all set to finally create the post
+				// Strip out all of the tags so it's just text with new lines and line breaks
+				// We're gonna try and maintain as much HTML as possible
+				$body = html_to_bbc(preg_replace(array('~^\s+~', '~\s+$~'), '', $body));
+				$title = $item->get_title();
+				$feed_title = static::$feedData->get_title() !== null ? striphtml(static::$feedData->get_title()) : '';
+
+				// compile the source
+				$source = (static::$feedData->get_permalink() !== null ? '[url=' . static::$feedData->get_permalink() . ']' : '');
+				$source .= !empty($feed_title) ? $feed_title : (static::$feedData->get_permalink() !== null ? static::$feedData->get_permalink() : '');
+				$source .= (static::$feedData->get_permalink() !== null ? '[/url]' : '');
+
+				// Format the post
+				$message =
+	($item->get_permalink() !== null ? '[url=' . $item->get_permalink() . ']' . $title . '[/url]' : $title) . '
+	' . ($item->get_date() !== null ? '[b]' . $item->get_date() . '[/b]
+	' : '') . '
+	' . $body . '
+
+	' . (!empty($source) ? '[b]' . $txt['rss_feed_source'] . ':[/b] ' . $source . '
+
+	' : '') . (!empty($feed['footer']) ? $feed['footer'] : '');
+
+				// Might have to update the subject for the single topic people
+				$subject = (!empty($feed['topic_prefix']) ? $feed['topic_prefix'] . ' ' : '') . (!empty($feed['single_topic']) && empty($feed['topic_id']) && !empty($feed_title) ? $feed_title : $title);
+
+				// Create the message/topic/poster options and insert the topic on the board
+				$msgOptions = array(
+					'subject' => $subject,
+					'body' => $message,
+					'approved' => !$feed['require_approval'],
+					'smileys_enabled' => false,
+					'icon' => $feed['icon'],
+				);
+				$topicOptions = array(
+					'id' => $feed['topic_id'],
+					'board' => $feed['board_id'],
+					'is_approved' => !$feed['require_approval'],
+					'lock_mode' => !empty($feed['lock_topic']) ? 1 : null,
+				);
+				$posterOptions = array(
+					'id' => $feed['poster_id'],
+					'name' => $feed['poster_name'],
+					'update_post_count' => true,
+					'ip' => '0.0.0.0',
+				);
+
+				require_once($this->sourceDir . '/Subs-Post.php');
+
+				if(createPost($msgOptions, $topicOptions, $posterOptions))
+				{
+					// Update the log table with this feed
+					$this->smcFunc['db_insert']('',
+						'{db_prefix}log_rssfeeds',
+						array('id_feed' => 'int', 'hash' => 'string', 'time' => 'int'),
+						array($id, md5($item->get_title()), time()),
+						array('id_feeditem')
+					);
+					$item_count++;
+
+					// Successful insertion, if a new topic was created and we're supposed keep adding to it, update the feed so we do
+					if (!empty($feed['single_topic']) && $feed['topic_id'] != $topicOptions['id'])
+						$feed['topic_id'] = $topicOptions['id'];
+				}
+			}
+
+			// Set the update time of the feed in the database... not sure what I'll use this for yet, but it's nice to have
+			$request = $this->smcFunc['db_query']('', '
+				UPDATE {db_prefix}rssfeeds
+				SET updatetime = {int:time},
+					importcount = importcount + {int:item_count},
+					id_topic = {int:topic}
+				WHERE id_feed = ({int:feed})',
+				array(
+					'time' => time(),
+					'item_count' => $item_count,
+					'topic' => $feed['topic_id'],
+					'feed' => $id,
+				)
+			);
+		}
+
+		return true;
 	}
 }
