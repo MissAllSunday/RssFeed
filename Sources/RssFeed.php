@@ -667,6 +667,10 @@ class RssFeed extends Suki\Ohara
 				if ($item->get_title() === null)
 					continue;
 
+				// Keyword search??
+				if (!empty($feed['keywords']) && !search_keywords($feed['keywords'], $item->get_title() . ($item->get_content() !== null ? ' ' . $item->get_content() : '')))
+					continue;
+
 				// OK, so this is a valid item to post about, has it already been logged?
 				$request = $this->smcFunc['db_query']('', '
 					SELECT id_feeditem
@@ -788,5 +792,31 @@ class RssFeed extends Suki\Ohara
 		}
 
 		return true;
+	}
+
+	public function keywords($keywords, $string)
+	{
+		global $context;
+
+		if (function_exists('mb_strtolower'))
+			$string = mb_strtolower($string, $context['character_set']);
+		else
+			$string = strtolower($string);
+
+		if (!is_array($keywords))
+			$keywords = explode(",", $keywords);
+
+		foreach($keywords as $keyword)
+		{
+			if (function_exists('mb_strtolower'))
+				$keyword = mb_strtolower($keyword, $context['character_set']);
+			else
+				$keyword = strtolower($keyword);
+
+			if (strpos($string, trim($keyword)) !== false)
+				return true;
+		}
+
+		return false;
 	}
 }
