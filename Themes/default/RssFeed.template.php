@@ -57,7 +57,7 @@ function template_rss_feeder_add()
 
 		else
 			echo '
-								<input type="checkbox" name="feed[', $field ,']" value="1"', !empty($context['rss_feed'][$field]) ? ' checked="checked"' : '', ' />';
+								<input type="checkbox" name="feed[', $field ,']" value="1"', !empty($context['feed'][$field]) ? ' checked="checked"' : '', ' />';
 
 		echo '
 							</dd>';

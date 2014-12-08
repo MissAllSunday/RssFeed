@@ -17,7 +17,6 @@ require_once ($boarddir .'/vendor/autoload.php');
 class RssFeed extends Suki\Ohara
 {
 	public $name = __CLASS__;
-	protected static $feedData;
 
 	public function __construct()
 	{
@@ -187,7 +186,7 @@ class RssFeed extends Suki\Ohara
 			$call = $this->data('do') . 'Feed';
 			$this->$call();
 
-			// Set a proper message and do a redirect. Let use assume everything went fine...
+			// Set a proper message and do a redirect. Let us assume everything went fine...
 			$this->setMessage('message', array($this->data('do') => 'info'));
 			return redirectexit('action=admin;area=RssFeed;sa=list');
 		}
@@ -591,7 +590,7 @@ class RssFeed extends Suki\Ohara
 		$context['character_set'] = empty($modSettings['global_character_set']) ? $txt['lang_character_set'] : $modSettings['global_character_set'];
 
 		// Create the instance.
-		static::$feedData = new SimplePie();
+		$rss_data = new SimplePie();
 
 		// Lets do this....
 		// First grab all of the enabled feeds...
@@ -630,16 +629,25 @@ class RssFeed extends Suki\Ohara
 		// We'll just run through each feed now... someone's gonna get a post count increase....
 		foreach ($feed_list as $id => $feed)
 		{
-			static::$feedData->enable_cache(true);
-			static::$feedData->enable_order_by_date(true);
-			static::$feedData->set_cache_location($cachedir);
-			static::$feedData->set_cache_duration(60*60*2); // 2 hours
-			static::$feedData->set_output_encoding($context['character_set']);
-			static::$feedData->strip_htmltags(true);
-			static::$feedData->set_feed_url($feed['url']);
-			static::$feedData->init();
+			// If this is already set, let's kill it, memory hog, it can be.
+			if (isset($rss_data))
+			{
+				if (is_a($rss_data, 'SimplePie'))
+					$rss_data->__destruct();
+				unset($rss_data);
+			}
+
+			$rss_data = new SimplePie();
+			$rss_data->enable_cache(true);
+			$rss_data->enable_order_by_date(true);
+			$rss_data->set_cache_location($cachedir);
+			$rss_data->set_cache_duration(60*60*2); // 2 hours
+			$rss_data->set_output_encoding($context['character_set']);
+			$rss_data->strip_htmltags(true);
+			$rss_data->set_feed_url($feed['url']);
+			$rss_data->init();
 			// If we don't get a valid chunk of data back, disable the feed
-			if (static::$feedData->error())
+			if ($rss_data->error())
 			{
 				$this->smcFunc['db_query']('', '
 					UPDATE {db_prefix}rssfeeds
@@ -651,13 +659,13 @@ class RssFeed extends Suki\Ohara
 				);
 
 				// Log an error about the issue, just so the user can see why their feed was disabled...
-				log_error($txt['rss_feeder'] . ': ' . $feed['url'] . ' (' . static::$feedData->error() . ')');
+				log_error($txt['rss_feeder'] . ': ' . $feed['url'] . ' (' . $rss_data->error() . ')');
 				continue;
 			}
 
 			// Run through each item in the feed
 			$item_count = 0;
-			foreach (static::$feedData->get_items() as $item)
+			foreach ($rss_data->get_items() as $item)
 			{
 				// Do we have a cap on how many to import?
 				if (!empty($feed['import_count']) && $item_count >= $feed['import_count'])
@@ -668,7 +676,7 @@ class RssFeed extends Suki\Ohara
 					continue;
 
 				// Keyword search??
-				if (!empty($feed['keywords']) && !search_keywords($feed['keywords'], $item->get_title() . ($item->get_content() !== null ? ' ' . $item->get_content() : '')))
+				if (!empty($feed['keywords']) && !$this->keywords($feed['keywords'], $item->get_title() . ($item->get_content() !== null ? ' ' . $item->get_content() : '')))
 					continue;
 
 				// OK, so this is a valid item to post about, has it already been logged?
@@ -694,7 +702,7 @@ class RssFeed extends Suki\Ohara
 				$redirect_url = '';
 				if (!empty($feed['full_article']) && $item->get_permalink() !== null)
 				{
-					$full_article = new SimplePie_File($item->get_permalink(), 10, 5, static::$feedData->useragent);
+					$full_article = new SimplePie_File($item->get_permalink(), 10, 5, $rss_data->useragent);
 					if ($full_article->success)
 					{
 						$matches = array();
@@ -714,12 +722,12 @@ class RssFeed extends Suki\Ohara
 				// We're gonna try and maintain as much HTML as possible
 				$body = html_to_bbc(preg_replace(array('~^\s+~', '~\s+$~'), '', $body));
 				$title = $item->get_title();
-				$feed_title = static::$feedData->get_title() !== null ? striphtml(static::$feedData->get_title()) : '';
+				$feed_title = $rss_data->get_title() !== null ? $rss_data->get_title() : '';
 
 				// compile the source
-				$source = (static::$feedData->get_permalink() !== null ? '[url=' . static::$feedData->get_permalink() . ']' : '');
-				$source .= !empty($feed_title) ? $feed_title : (static::$feedData->get_permalink() !== null ? static::$feedData->get_permalink() : '');
-				$source .= (static::$feedData->get_permalink() !== null ? '[/url]' : '');
+				$source = ($rss_data->get_permalink() !== null ? '[url=' . $rss_data->get_permalink() . ']' : '');
+				$source .= !empty($feed_title) ? $feed_title : ($rss_data->get_permalink() !== null ? $rss_data->get_permalink() : '');
+				$source .= ($rss_data->get_permalink() !== null ? '[/url]' : '');
 
 				// Format the post
 				$message =
@@ -728,7 +736,7 @@ class RssFeed extends Suki\Ohara
 	' : '') . '
 	' . $body . '
 
-	' . (!empty($source) ? '[b]' . $txt['rss_feed_source'] . ':[/b] ' . $source . '
+	' . (!empty($source) ? '[b]' . $txt['RssFeed_feed_source'] . ':[/b] ' . $source . '
 
 	' : '') . (!empty($feed['footer']) ? $feed['footer'] : '');
 
