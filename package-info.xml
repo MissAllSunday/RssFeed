@@ -10,8 +10,15 @@
 
 	<install for="2.1 - 2.1.99">
 		<readme parsebbc="true">README.txt</readme>
+		<license type="inline" parsebbc="false">
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+		</license>
+		<hook function="RssFeed::runTimeHooks" hook="integrate_pre_load" file="$sourcedir/RssFeed.php" object="true"></hook>
+		<credits url="http://missallsunday.com" license="MPL 2.0" copyright="Suki" licenseurl="https://www.mozilla.org/MPL/2.0/">Rss feed mod</credits>
+		<require-dir name="Sources/ohara" destination="$sourcedir">Source library</require-dir>
 		<database>install.php</database>
-		<code>hooks.php</code>
 		<require-dir name="Themes" destination="$boarddir">Theme and Language files</require-dir>
 		<require-file name="Sources/RssFeed.php" destination="$sourcedir">The file that handles everything</require-file>
 		<require-dir name="vendor" destination="$boarddir">Libraries</require-dir>
@@ -20,7 +27,6 @@
 
 	<uninstall for="2.1 - 2.1.99">
 		<code>removeScheduledTask.php</code>
-		<code>remove.php</code>
 		<database>install.php</database>
 	</uninstall>
 </package-info>

@@ -11,12 +11,19 @@
 if (!defined('SMF'))
 	die('No direct access...');
 
-// Use composer!
-require_once ($boarddir .'/vendor/autoload.php');
+// @todo load simplepie manually :(
+
+// Use Ohara! manually :(
+require_once ($sourcedir .'/ohara/src/Suki/Ohara.php');
 
 class RssFeed extends Suki\Ohara
 {
 	public $name = __CLASS__;
+
+	// Define the hooks we are going to use.
+	protected $_availableHooks = array(
+		'admin' => 'integrate_admin_areas',
+	);
 
 	public function __construct()
 	{
@@ -24,7 +31,7 @@ class RssFeed extends Suki\Ohara
 		$this->setRegistry();
 	}
 
-	public function admin(&$adminAreas)
+	public function addAdmin(&$adminAreas)
 	{
 		$adminAreas['config']['areas'][$this->name] = array(
 			'label' => $this->text('menu_name'),
@@ -135,7 +142,7 @@ class RssFeed extends Suki\Ohara
 				)
 			);
 
-			// No Feed?? ut oh... hacker!!
+			// There is no feed.
 			if ($this->smcFunc['db_num_rows']($request) != 1)
 				fatal_lang_error('RssFeed_feed_not_found', false);
 
