@@ -100,14 +100,14 @@ class RssFeed extends Suki\Ohara
 		$context['sub_template'] = 'rss_feeder_add';
 
 		// Load the boards and categories for adding or editing a feed.
-		$request = $this->smcFunc['db_query']('', '
+		$request = $smcFunc['db_query']('', '
 			SELECT b.id_board, b.name, b.child_level, c.name AS cat_name, c.id_cat
 			FROM {db_prefix}boards AS b
 				LEFT JOIN {db_prefix}categories AS c ON (c.id_cat = b.id_cat)',
 			array()
 		);
 		$context['categories'] = array();
-		while ($row = $this->smcFunc['db_fetch_assoc']($request))
+		while ($row = $smcFunc['db_fetch_assoc']($request))
 		{
 			if (!isset($context['categories'][$row['id_cat']]))
 				$context['categories'][$row['id_cat']] = array (
@@ -123,7 +123,7 @@ class RssFeed extends Suki\Ohara
 				'selected' => !empty($_SESSION['move_to_topic']) && $_SESSION['move_to_topic'] == $row['id_board'] && $row['id_board'] != $board,
 			);
 		}
-		$this->smcFunc['db_free_result']($request);
+		$smcFunc['db_free_result']($request);
 
 		if (empty($context['categories']))
 			fatal_lang_error('RssFeed_feed_no_boards', false);
@@ -132,7 +132,7 @@ class RssFeed extends Suki\Ohara
 		if ($this->feedID && empty($context['feed']))
 		{
 			// Lets get the feed from the database
-			$request = $this->smcFunc['db_query']('', '
+			$request = $smcFunc['db_query']('', '
 				SELECT *
 				FROM {db_prefix}rssfeeds
 				WHERE id_feed = {int:feed}
@@ -143,12 +143,12 @@ class RssFeed extends Suki\Ohara
 			);
 
 			// There is no feed.
-			if ($this->smcFunc['db_num_rows']($request) != 1)
+			if ($smcFunc['db_num_rows']($request) != 1)
 				fatal_lang_error('RssFeed_feed_not_found', false);
 
-			$context['feed'] = $this->smcFunc['db_fetch_assoc']($request);
+			$context['feed'] = $smcFunc['db_fetch_assoc']($request);
 			$context['feed'] = htmlspecialchars__recursive($context['feed']);
-			$this->smcFunc['db_free_result']($request);
+			$smcFunc['db_free_result']($request);
 		}
 
 		$context['icon'] = !empty($context['feed']['icon']) ? $context['feed']['icon'] : 'xx';
@@ -408,7 +408,7 @@ class RssFeed extends Suki\Ohara
 
 	public function deleteFeed()
 	{
-		$this->smcFunc['db_query']('', '
+		$smcFunc['db_query']('', '
 			DELETE FROM {db_prefix}rssfeeds
 			WHERE id_feed IN ({array_int:feed_list})',
 			array(
@@ -422,7 +422,7 @@ class RssFeed extends Suki\Ohara
 		$enable = !empty($enable) ? (int) $enable : $this->data('enable');
 
 		// Quick change on the status...
-		$this->smcFunc['db_query']('', '
+		$smcFunc['db_query']('', '
 			UPDATE {db_prefix}rssfeeds
 			SET enabled = {int:option}
 			WHERE id_feed = {int:feed}',
@@ -477,7 +477,7 @@ class RssFeed extends Suki\Ohara
 		// Do a query to get the member's id
 		else
 		{
-			$request = $this->smcFunc['db_query']('', '
+			$request = $smcFunc['db_query']('', '
 				SELECT id_member
 				FROM {db_prefix}members
 				WHERE real_name = {string:name}
@@ -488,14 +488,14 @@ class RssFeed extends Suki\Ohara
 				)
 			);
 
-			if ($this->smcFunc['db_num_rows']($request) != 1)
+			if ($smcFunc['db_num_rows']($request) != 1)
 				$context['errors']['poster'] = ($insertOptions['postername'] = '');
 
 			else
 			{
-				list($insertOptions['id_member']) = $this->smcFunc['db_fetch_row']($request);
+				list($insertOptions['id_member']) = $smcFunc['db_fetch_row']($request);
 			}
-			$this->smcFunc['db_free_result']($request);
+			$smcFunc['db_free_result']($request);
 		}
 
 		if (!empty($insertOptions['getfull']) && empty($insertOptions['regex']))
@@ -520,7 +520,7 @@ class RssFeed extends Suki\Ohara
 		// Modifying an existing feed?
 		if ($this->feedID)
 		{
-			$this->smcFunc['db_query']('','
+			$smcFunc['db_query']('','
 				UPDATE {db_prefix}rssfeeds
 				SET
 					id_board = {int:id_board},
@@ -568,13 +568,13 @@ class RssFeed extends Suki\Ohara
 			ksort($insertRows);
 			ksort($insertOptions);
 
-			$this->smcFunc['db_insert']('',
+			$smcFunc['db_insert']('',
 				'{db_prefix}rssfeeds',
 				$insertRows,
 				$insertOptions,
 				array('id_feed')
 			);
-			$id_feed = $this->smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
+			$id_feed = $smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
 
 			$this->setMessage('message', array('insert' => (empty($id_feed) ? 'error' : 'info')));
 		}
@@ -601,7 +601,7 @@ class RssFeed extends Suki\Ohara
 
 		// Lets do this....
 		// First grab all of the enabled feeds...
-		$request = $this->smcFunc['db_query']('', '
+		$request = $smcFunc['db_query']('', '
 			SELECT f.id_feed, f.id_board, t.id_topic, f.icon, f.feedurl, f.postername, f.id_member, f.keywords, f.getfull, f.regex, f.locked, f.approve, f.singletopic, f.topicprefix, f.footer, f.numbertoimport
 			FROM {db_prefix}rssfeeds as f
 				LEFT JOIN {db_prefix}topics as t ON (t.id_topic = f.id_topic)
@@ -611,7 +611,7 @@ class RssFeed extends Suki\Ohara
 		);
 
 		$feed_list = array();
-		while ($row = $this->smcFunc['db_fetch_assoc']($request))
+		while ($row = $smcFunc['db_fetch_assoc']($request))
 			$feed_list[$row['id_feed']] = array(
 				'board_id' => $row['id_board'],
 				'topic_id' => empty($row['singletopic']) ? 0 : (empty($row['id_topic']) ? 0 : $row['id_topic']),
@@ -629,7 +629,7 @@ class RssFeed extends Suki\Ohara
 				'footer' => $row['footer'],
 				'import_count' => $row['numbertoimport'],
 			);
-		$this->smcFunc['db_free_result']($request);
+		$smcFunc['db_free_result']($request);
 
 		require_once($this->sourceDir . '/Subs-Editor.php');
 
@@ -656,7 +656,7 @@ class RssFeed extends Suki\Ohara
 			// If we don't get a valid chunk of data back, disable the feed
 			if ($rss_data->error())
 			{
-				$this->smcFunc['db_query']('', '
+				$smcFunc['db_query']('', '
 					UPDATE {db_prefix}rssfeeds
 					SET enabled = 0
 					WHERE id_feed = {int:feed}',
@@ -687,7 +687,7 @@ class RssFeed extends Suki\Ohara
 					continue;
 
 				// OK, so this is a valid item to post about, has it already been logged?
-				$request = $this->smcFunc['db_query']('', '
+				$request = $smcFunc['db_query']('', '
 					SELECT id_feeditem
 					FROM {db_prefix}log_rssfeeds
 					WHERE id_feed = {int:feed}
@@ -700,7 +700,7 @@ class RssFeed extends Suki\Ohara
 				);
 
 				// It does exist already... skip it
-				if ($this->smcFunc['db_num_rows']($request) != 0)
+				if ($smcFunc['db_num_rows']($request) != 0)
 					continue;
 
 				// I think it's time to actually post the feed... it has a link, it matched keywords (if we had them), it doesn't already exist...
@@ -778,7 +778,7 @@ class RssFeed extends Suki\Ohara
 				if(createPost($msgOptions, $topicOptions, $posterOptions))
 				{
 					// Update the log table with this feed
-					$this->smcFunc['db_insert']('',
+					$smcFunc['db_insert']('',
 						'{db_prefix}log_rssfeeds',
 						array('id_feed' => 'int', 'hash' => 'string', 'time' => 'int'),
 						array($id, md5($item->get_title()), time()),
@@ -793,7 +793,7 @@ class RssFeed extends Suki\Ohara
 			}
 
 			// Set the update time of the feed in the database... not sure what I'll use this for yet, but it's nice to have
-			$request = $this->smcFunc['db_query']('', '
+			$request = $smcFunc['db_query']('', '
 				UPDATE {db_prefix}rssfeeds
 				SET updatetime = {int:time},
 					importcount = importcount + {int:item_count},
