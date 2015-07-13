@@ -659,7 +659,7 @@ class RssFeed extends Suki\Ohara
 				);
 
 				// Log an error about the issue, just so the user can see why their feed was disabled...
-				log_error($txt['rss_feeder'] . ': ' . $feed['url'] . ' (' . $rss_data->error() . ')');
+				log_error($txt['RssFeed_menu_name'] . ': ' . $feed['url'] . ' (' . $rss_data->error() . ')');
 				continue;
 			}
 
@@ -725,9 +725,11 @@ class RssFeed extends Suki\Ohara
 				$feed_title = $rss_data->get_title() !== null ? $rss_data->get_title() : '';
 
 				// compile the source
-				$source = ($rss_data->get_permalink() !== null ? '[url=' . $rss_data->get_permalink() . ']' : '');
-				$source .= !empty($feed_title) ? $feed_title : ($rss_data->get_permalink() !== null ? $rss_data->get_permalink() : '');
-				$source .= ($rss_data->get_permalink() !== null ? '[/url]' : '');
+				$source = '';
+
+				// Manga spoiler feed.
+				if ($id == 2)
+					$body = strstr($body, 'at Mangaspoiler.com. if', true);
 
 				// Format the post
 				$message =
