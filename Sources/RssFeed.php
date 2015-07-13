@@ -70,12 +70,12 @@ class RssFeed extends Suki\Ohara
 
 		$call = ($this->validate('sa') && in_array($this->data('sa'), $subActions) ? $this->data('sa') : 'list') . 'Feed';
 
-		return $this->$call();
+		return $this->{$call}();
 	}
 
 	public function addFeed()
 	{
-		global $context;
+		global $smcFunc, $context;
 
 		// Saving?
 		if ($this->data('do') && $this->data('do') == 'save')
@@ -183,7 +183,7 @@ class RssFeed extends Suki\Ohara
 
 	public function listFeed()
 	{
-		global $context;
+		global $smcFunc, $context;
 
 		$do = array('delete', 'enable');
 
@@ -191,7 +191,7 @@ class RssFeed extends Suki\Ohara
 		if ($this->data('do') && in_array($this->data('do'), $do))
 		{
 			$call = $this->data('do') . 'Feed';
-			$this->$call();
+			$this->{$call}();
 
 			// Set a proper message and do a redirect. Let us assume everything went fine...
 			$this->setMessage('message', array($this->data('do') => 'info'));
@@ -214,9 +214,9 @@ class RssFeed extends Suki\Ohara
 			'base_href' => $this->scriptUrl . '?action=admin;area=RssFeed;sa=rssfeeds',
 			'no_items_label' => $this->text('none'),
 			'get_items' => array(
-				'function' => function ($start, $items_per_page, $sort) use ($that)
+				'function' => function ($start, $items_per_page, $sort) use ($smcFunc)
 				{
-					$request = $that->smcFunc['db_query']('', '
+					$request = $smcFunc['db_query']('', '
 						SELECT f.id_feed, b.name, f.title, f.feedurl, f.enabled, f.importcount, f.updatetime
 						FROM {db_prefix}rssfeeds AS f
 							LEFT JOIN {db_prefix}boards AS b ON (b.id_board = f.id_board)
@@ -227,10 +227,10 @@ class RssFeed extends Suki\Ohara
 						)
 					);
 					$feeds = array();
-					while ($row = $that->smcFunc['db_fetch_assoc']($request))
+					while ($row = $smcFunc['db_fetch_assoc']($request))
 						$feeds[] = $row;
 
-					$that->smcFunc['db_free_result']($request);
+					$smcFunc['db_free_result']($request);
 
 					return $feeds;
 				},
@@ -238,14 +238,16 @@ class RssFeed extends Suki\Ohara
 			'get_count' => array(
 				'function' => function() use ($that)
 				{
-					$request = $that->smcFunc['db_query']('', '
+					global $smcFunc;
+
+					$request = $smcFunc['db_query']('', '
 						SELECT COUNT(*)
 						FROM {db_prefix}rssfeeds',
 						array(
 						)
 					);
-					list($numFeeds) = $that->smcFunc['db_fetch_row']($request);
-					$that->smcFunc['db_free_result']($request);
+					list($numFeeds) = $smcFunc['db_fetch_row']($request);
+					$smcFunc['db_free_result']($request);
 
 					return $numFeeds;
 				}
@@ -258,9 +260,11 @@ class RssFeed extends Suki\Ohara
 					'data' => array(
 						'function' => function ($rowData) use($that)
 						{
+							global $smcFunc;
+
 							if (empty($rowData['name']) && $rowData['enabled'])
 							{
-								$that->smcFunc['db_query']('', '
+								$smcFunc['db_query']('', '
 									UPDATE {db_prefix}rssfeeds
 									SET enabled = 0
 									WHERE id_feed = {int:feed}',
@@ -408,6 +412,8 @@ class RssFeed extends Suki\Ohara
 
 	public function deleteFeed()
 	{
+		global $smcFunc;
+
 		$smcFunc['db_query']('', '
 			DELETE FROM {db_prefix}rssfeeds
 			WHERE id_feed IN ({array_int:feed_list})',
@@ -419,6 +425,8 @@ class RssFeed extends Suki\Ohara
 
 	public function enableFeed($feed = false, $enable = '')
 	{
+		global $smcFunc;
+
 		$enable = !empty($enable) ? (int) $enable : $this->data('enable');
 
 		// Quick change on the status...
@@ -435,6 +443,8 @@ class RssFeed extends Suki\Ohara
 
 	public function saveFeed()
 	{
+		global $smcFunc;
+
 		// Check the session.
 		checkSession();
 
@@ -585,7 +595,7 @@ class RssFeed extends Suki\Ohara
 
 	public function task()
 	{
-		global $cachedir, $modSettings, $context, $txt;
+		global $smcFunc, $cachedir, $modSettings, $context, $txt;
 
 		// Adjust the timeout value... who knows how many feeds we have and how many items we're getting
 		// If this whole thing can't run in 5 minutes, we've got issues, and I'm sure the host would complain...
