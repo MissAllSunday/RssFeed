@@ -94,8 +94,8 @@ class RssFeed extends Suki\Ohara
 		);
 
 		// Any errors?
-		$context['feed'] = $this->getMessage('data');
-		$context['errors'] = $this->getMessage('errors');
+		$context['feed'] = $this->getUpdate('data');
+		$context['errors'] = $this->getUpdate('errors');
 
 		$context['sub_template'] = 'rss_feeder_add';
 
@@ -194,17 +194,26 @@ class RssFeed extends Suki\Ohara
 			$this->{$call}();
 
 			// Set a proper message and do a redirect. Let us assume everything went fine...
-			$this->setMessage('message', array($this->data('do') => 'info'));
+			$this->setUpdate('message', array($this->data('do') => 'info'));
 			return redirectexit('action=admin;area=RssFeed;sa=list');
 		}
 
 		$context['sub_template'] = 'rss_feeder_list';
 
 		// Any message?
-		$context['feed_message'] = $this->getMessage('message');
+		$context['feed_message'] = $this->getUpdate('message');
 
 		// Quick trick for PHP < 5.4.
 		$that = $this;
+
+		$request = $smcFunc['db_query']('', '
+			SELECT COUNT(*)
+			FROM {db_prefix}rssfeeds',
+			array(
+			)
+		);
+		list($numFeeds) = $smcFunc['db_fetch_row']($request);
+		$smcFunc['db_free_result']($request);
 
 		// Create the table that will display the feeds.
 		$listOptions = array(
@@ -236,19 +245,8 @@ class RssFeed extends Suki\Ohara
 				},
 			),
 			'get_count' => array(
-				'function' => function() use ($that)
+				'function' => function() use ($numFeeds)
 				{
-					global $smcFunc;
-
-					$request = $smcFunc['db_query']('', '
-						SELECT COUNT(*)
-						FROM {db_prefix}rssfeeds',
-						array(
-						)
-					);
-					list($numFeeds) = $smcFunc['db_fetch_row']($request);
-					$smcFunc['db_free_result']($request);
-
 					return $numFeeds;
 				}
 			),
@@ -514,8 +512,8 @@ class RssFeed extends Suki\Ohara
 		// if we had any errors, lets kick back a screen and highlight them...
 		if (!empty($context['errors']))
 		{
-			$this->setMessage('errors', $context['errors']);
-			$this->setMessage('data', $insertOptions);
+			$this->setUpdate('errors', $context['errors']);
+			$this->setUpdate('data', $insertOptions);
 			redirectexit('action=admin;area=RssFeed;sa=add'. ($this->feedID ? ';feedID='. $this->feedID : ''));
 		}
 
@@ -552,7 +550,7 @@ class RssFeed extends Suki\Ohara
 				WHERE id_feed = {int:id_feed}',
 				array_merge(array('id_feed' => $this->feedID), $insertOptions)
 			);
-			$this->setMessage('message', array('update' => 'info'));
+			$this->setUpdate('message', array('update' => 'info'));
 		}
 		// Or I guess we're inserting a new one
 		else
@@ -586,7 +584,7 @@ class RssFeed extends Suki\Ohara
 			);
 			$id_feed = $smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
 
-			$this->setMessage('message', array('insert' => (empty($id_feed) ? 'error' : 'info')));
+			$this->setUpdate('message', array('insert' => (empty($id_feed) ? 'error' : 'info')));
 		}
 
 		// Either way, redirect back to the list page.
@@ -656,7 +654,6 @@ class RssFeed extends Suki\Ohara
 
 			$rss_data = new SimplePie();
 			$rss_data->enable_cache(true);
-			$rss_data->enable_order_by_date(true);
 			$rss_data->set_cache_location($cachedir);
 			$rss_data->set_cache_duration(60*60*2); // 2 hours
 			$rss_data->set_output_encoding($context['character_set']);
@@ -682,7 +679,9 @@ class RssFeed extends Suki\Ohara
 
 			// Run through each item in the feed
 			$item_count = 0;
-			foreach ($rss_data->get_items() as $item)
+			$get_items = $rss_data->get_items();
+			krsort($get_items);
+			foreach ($get_items as $item)
 			{
 				// Do we have a cap on how many to import?
 				if (!empty($feed['import_count']) && $item_count >= $feed['import_count'])
