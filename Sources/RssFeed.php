@@ -11,14 +11,17 @@
 if (!defined('SMF'))
 	die('No direct access...');
 
-// @todo load simplepie manually :(
-
 // Use Ohara! manually :(
 require_once ($sourcedir .'/ohara/src/Suki/Ohara.php');
 
 class RssFeed extends Suki\Ohara
 {
 	public $name = __CLASS__;
+
+	// Define any external libraries.
+	protected $_libNamespace = array(
+		'SimplePie' => array('{$vendorDir}/simplepie/simplepie/library'),
+	);
 
 	// Define the hooks we are going to use.
 	protected $_availableHooks = array(
@@ -29,6 +32,9 @@ class RssFeed extends Suki\Ohara
 	{
 		// Initialize everything.
 		$this->setRegistry();
+
+		// Load any external libraries.
+		$this->autoLoad();
 	}
 
 	public function addAdmin(&$adminAreas)
@@ -37,7 +43,7 @@ class RssFeed extends Suki\Ohara
 			'label' => $this->text('menu_name'),
 			'file' => 'RssFeed.php',
 			'function' => 'RssFeed::call#',
-			'icon' => 'posts.png',
+			'icon' => 'posts',
 			'subsections' => array(
 				'list' => array($this->text('menu_name_list')),
 				'add' => array($this->text('feed_add'))
@@ -75,7 +81,7 @@ class RssFeed extends Suki\Ohara
 
 	public function addFeed()
 	{
-		global $smcFunc, $context;
+		global $smcFunc, $context, $txt, $settings;
 
 		// Saving?
 		if ($this->data('do') && $this->data('do') == 'save')
@@ -170,7 +176,7 @@ class RssFeed extends Suki\Ohara
 		}
 		if (empty($context['icon_url']))
 		{
-			$context['icon_url'] = $this->settings[file_exists($this->settings['theme_dir'] . '/images/post/' . $context['icon'] . '.gif') ? 'images_url' : 'default_images_url'] . '/post/' . $context['icon'] . '.gif';
+			$context['icon_url'] = $settings[file_exists($settings['theme_dir'] . '/images/post/' . $context['icon'] . '.gif') ? 'images_url' : 'default_images_url'] . '/post/' . $context['icon'] . '.gif';
 			array_unshift($context['icons'], array(
 				'value' => $context['icon'],
 				'name' => $txt['current_icon'],
@@ -183,7 +189,7 @@ class RssFeed extends Suki\Ohara
 
 	public function listFeed()
 	{
-		global $smcFunc, $context;
+		global $smcFunc, $context, $settings;
 
 		$do = array('delete', 'enable');
 
@@ -256,7 +262,7 @@ class RssFeed extends Suki\Ohara
 						'value' => $this->text('feed_enabled'),
 					),
 					'data' => array(
-						'function' => function ($rowData) use($that)
+						'function' => function ($rowData) use($that, $settings)
 						{
 							global $smcFunc;
 
@@ -277,7 +283,7 @@ class RssFeed extends Suki\Ohara
 								$rowData['enabled'] = 0;
 							}
 
-							return '<a href="' . $that->scriptUrl . '?action=admin;area=RssFeed;sa=list;feedID=' . $rowData['id_feed'] .';do=enable;enable='. ($rowData['enabled'] ? '0' : '1') . '"><img src="' . $that->settings['images_url'] . ($rowData['enabled'] ? '/rss_enabled.gif' : '/rss_disabled.gif') . '" alt="*" /></a>';
+							return '<a href="' . $that->scriptUrl . '?action=admin;area=RssFeed;sa=list;feedID=' . $rowData['id_feed'] .';do=enable;enable='. ($rowData['enabled'] ? '0' : '1') . '"><img src="' . $settings['images_url'] . ($rowData['enabled'] ? '/rss_enabled.gif' : '/rss_disabled.gif') . '" alt="*" /></a>';
 						},
 						'style' => 'text-align: center; width: 130px;',
 					),
@@ -601,6 +607,10 @@ class RssFeed extends Suki\Ohara
 		if (function_exists('apache_reset_timeout'))
 			apache_reset_timeout();
 
+		// Scheduled tasks doesn't load everything we need.
+		require_once($this->sourceDir . '/Class-BrowserDetect.php');
+		require_once($this->sourceDir . '/Logging.php');
+
 		loadEssentialThemeData();
 		$context['character_set'] = empty($modSettings['global_character_set']) ? $txt['lang_character_set'] : $modSettings['global_character_set'];
 
@@ -673,7 +683,7 @@ class RssFeed extends Suki\Ohara
 				);
 
 				// Log an error about the issue, just so the user can see why their feed was disabled...
-				log_error($txt['RssFeed_menu_name'] . ': ' . $feed['url'] . ' (' . $rss_data->error() . ')');
+				log_error($this->text('menu_name') . ': ' . $feed['url'] . ' (' . $rss_data->error() . ')');
 				continue;
 			}
 
