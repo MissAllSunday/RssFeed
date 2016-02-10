@@ -30,6 +30,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 		<code>removeScheduledTask.php</code>
 		<database>install.php</database>
 		<hook function="RssFeed::runTimeHooks" hook="integrate_load_theme" file="$sourcedir/RssFeed.php" object="true" reverse="true"></hook>
+		<remove-file name="Sources/RssFeed.php" />
 		<remove-file name="$themedir/RssFeed.template.php" />
 		<remove-file name="$languagedir/RssFeed.english.php" />
 		<remove-file name="$boarddir/_configRssFeed.json" />
