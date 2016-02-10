@@ -10,9 +10,9 @@
 
 global $txt;
 
-$txt['RssFeed_menu_name'] = 'RSS Feeds';
-$txt['RssFeed_menu_name_settings'] = 'Settings';
-$txt['RssFeed_menu_name_list'] = 'Feed List';
+$txt['RssFeed_modName'] = 'RSS Feeds';
+$txt['RssFeed_modName_settings'] = 'Settings';
+$txt['RssFeed_modName_list'] = 'Feed List';
 $txt['RssFeed_update_enable'] = 'Successfully enable the feed';
 $txt['RssFeed_update_delete'] = 'Successfully deleted the feed';
 $txt['RssFeed_update_add'] = 'Successfully added the feed';
@@ -61,7 +61,7 @@ $txt['RssFeed_feed_confirm'] = 'Are you sure you wish to delete the selected fee
 $txt['RssFeed_feed_not_found'] = 'Could not find a feed with that id.';
 $txt['RssFeed_feed_no_boards'] = 'There are no boards to post feeds to.';
 $txt['RssFeed_feed_add_error'] = 'The information highlighted in red is required';
-$txt['RssFeed_feed_insert_error'] = 'Could not insert the new feed successfully';
+$txt['RssFeed_feed_insert_error'] = 'Could not insert the new feed';
 $txt['RssFeed_feed_insert_info'] = 'The feed was created successfully';
 $txt['RssFeed_feed_update_info'] = 'The feed was updated successfully';
 $txt['RssFeed_feed_enable_info'] = 'The feed was changed successfully';

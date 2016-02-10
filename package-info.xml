@@ -8,25 +8,30 @@
 	<version>1.0</version>
 	<type>modification</type>
 
-	<install for="2.1 Beta 2, 2.1 - 2.1.99">
-		<readme parsebbc="true">README.txt</readme>
+	<install for="2.1 Beta 2, 2.1 Beta 3, 2.1 - 2.1.99">
+		<readme parsebbc="false">README.md</readme>
 		<license type="inline" parsebbc="false">
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/.
 		</license>
-		<hook function="RssFeed::runTimeHooks" hook="integrate_pre_load" file="$sourcedir/RssFeed.php" object="true"></hook>
+		<hook function="RssFeed::runTimeHooks" hook="integrate_load_theme" file="$sourcedir/RssFeed.php" object="true"></hook>
 		<credits url="http://missallsunday.com" license="MPL 2.0" copyright="Suki" licenseurl="https://www.mozilla.org/MPL/2.0/">Rss feed mod</credits>
 		<require-dir name="Sources/ohara" destination="$sourcedir">Source library</require-dir>
 		<database>install.php</database>
 		<require-dir name="Themes" destination="$boarddir">Theme and Language files</require-dir>
 		<require-file name="Sources/RssFeed.php" destination="$sourcedir">The file that handles everything</require-file>
 		<require-dir name="vendor" destination="$boarddir">Libraries</require-dir>
+		<require-file name="_configRssFeed.json" destination="$boarddir">json config file</require-file>
 		<redirect url="$scripturl?action=admin;area=RssFeed" timeout="3000"></redirect>
 	</install>
 
-	<uninstall for="2.1 - 2.1.99">
+	<uninstall for="2.1 Beta 2, 2.1 Beta 3, 2.1 - 2.1.99">
 		<code>removeScheduledTask.php</code>
 		<database>install.php</database>
+		<hook function="RssFeed::runTimeHooks" hook="integrate_load_theme" file="$sourcedir/RssFeed.php" object="true" reverse="true"></hook>
+		<remove-file name="$themedir/RssFeed.template.php" />
+		<remove-file name="$languagedir/RssFeed.english.php" />
+		<remove-file name="$boarddir/_configRssFeed.json" />
 	</uninstall>
 </package-info>
