@@ -748,9 +748,8 @@ class RssFeed extends Suki\Ohara
 				// compile the source
 				$source = '';
 
-				// Manga spoiler feed.
-				if ($id == 2)
-					$body = strstr($body, 'at Mangaspoiler.com. if', true);
+				// Mess with the body.
+				call_integration_hook('integrate_'. $this->name .'_body', array(&$body, &$title));
 
 				// Format the post
 				$message =
