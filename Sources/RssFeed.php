@@ -106,7 +106,7 @@ class RssFeed extends Suki\Ohara
 
 		// Create the table that will display the feeds.
 		$listOptions = array(
-			'id' => 'rss_feeder_list',
+			'id' => 'rss_feederList',
 			'items_per_page' => 10,
 			'default_sort_col' => 'icon',
 			'base_href' => $this->scriptUrl . '?action=admin;area='. $this->name .';sa=rssfeeds',

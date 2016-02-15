@@ -20,7 +20,7 @@ function template_rss_feeder_list()
 					', $txt['RssFeed_feed_'. $action .'_'. $message] ,'
 				</div>';
 
-	template_show_list('rss_feeder_list');
+	template_show_list('rss_feederList');
 }
 
 function template_rss_feeder_add()
