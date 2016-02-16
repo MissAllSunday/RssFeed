@@ -64,8 +64,8 @@ class RssFeed extends Suki\Ohara
 		// Subactions.
 		$subActions = array('list', 'add',);
 
-		$this->_sa = $this->validate('sa') && in_array($this->data('sa'), $subActions) ? $this->data('sa') : 'list';
-		$call = $this->_sa . 'Feed';
+		$this->_sa = $this->data('sa');
+		$call = ($this->_sa && in_array($this->_sa, $subActions) ?  $this->_sa : 'list') . 'Feed';
 
 		return $this->{$call}();
 	}
