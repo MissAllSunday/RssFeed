@@ -164,7 +164,7 @@ class RssFeed extends Suki\Ohara
 								$rowData['enabled'] = 0;
 							}
 
-							return '<a href="' . $that->scriptUrl . '?action=admin;area='. $that->name .';sa='. $this->_sa .';feedID=' . $rowData['id_feed'] .';do=enable;enable='. ($rowData['enabled'] ? '0' : '1') . '" class="generic_icons '. ($rowData['enabled'] ? 'valid' : 'disable') . '"></a>';
+							return '<a href="' . $that->scriptUrl . '?action=admin;area='. $that->name .';sa='. $that->_sa .';feedID=' . $rowData['id_feed'] .';do=enable;enable='. ($rowData['enabled'] ? '0' : '1') . '" class="generic_icons '. ($rowData['enabled'] ? 'valid' : 'disable') . '"></a>';
 						},
 						'style' => 'text-align: center; width: 130px;',
 					),
