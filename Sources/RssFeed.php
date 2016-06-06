@@ -34,7 +34,7 @@ class RssFeed extends Suki\Ohara
 		$adminAreas['config']['areas'][$this->name] = array(
 			'label' => $this->text('modName'),
 			'file' => 'RssFeed.php',
-			'function' => 'RssFeed::call#',
+			'function' => array($this, 'call'),
 			'icon' => 'posts',
 			'subsections' => array(
 				'list' => array($this->text('modName')),
@@ -76,7 +76,7 @@ class RssFeed extends Suki\Ohara
 
 		$do = array('delete', 'enable');
 
-		// Something to do?
+		// Something to do? do do do...
 		if ($this->data('do') && in_array($this->data('do'), $do))
 		{
 			$call = $this->data('do') . 'Feed';
@@ -718,6 +718,7 @@ class RssFeed extends Suki\Ohara
 					continue;
 
 				// I think it's time to actually post the feed... it has a link, it matched keywords (if we had them), it doesn't already exist...
+
 				// Should we get the whole feed??
 				$body = $item->get_content() !== null ? $item->get_content() : $item->get_title();
 				$redirect_url = '';
