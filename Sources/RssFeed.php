@@ -11,8 +11,10 @@
 if (!defined('SMF'))
 	die('No direct access...');
 
-// Use Ohara! manually :(
-require_once ($sourcedir .'/ohara/src/Suki/Ohara.php');
+// Ohara autoload!
+require_once $sourcedir .'/ohara/src/Suki/autoload.php';
+
+use Suki\Ohara;
 
 class RssFeed extends Suki\Ohara
 {
@@ -24,9 +26,6 @@ class RssFeed extends Suki\Ohara
 	{
 		// Initialize everything.
 		$this->setRegistry();
-
-		// Load any external libraries.
-		$this->autoLoad();
 	}
 
 	public function addAdmin(&$adminAreas)
