@@ -641,19 +641,21 @@ class RssFeed extends Suki\Ohara
 
 		require_once($this->sourceDir . '/Subs-Editor.php');
 
+		$class = 'SimplePie';
+
 		// We'll just run through each feed now... someone's gonna get a post count increase....
 		foreach ($feed_list as $id => $feed)
 		{
 			// If this is already set, let's kill it, memory hog, it can be.
 			if (isset($rss_data))
 			{
-				if (is_a($rss_data, 'SimplePie'))
+				if ($rss_data instanceof $class))
 					$rss_data->__destruct();
 
 				unset($rss_data);
 			}
 
-			$rss_data = new SimplePie();
+			$rss_data = new $class;
 			$rss_data->enable_cache(true);
 			$rss_data->set_cache_location($cachedir);
 			$rss_data->set_cache_duration(129600); // 1.5 days Most scheduled tasks will run once a day so its pointless to set the cache lower than that.
