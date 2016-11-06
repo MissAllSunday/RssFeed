@@ -48,8 +48,11 @@ class RssFeed extends Suki\Ohara
 
 		loadTemplate($this->name);
 
+		// Always check the session.
+		checkSession('request');
+
 		// A feed ID is going to be used a lot so better set this right now, 0 for adding a new feed.
-		$this->feedID = $this->validate('feedID') ? $this->data('feedID') : 0;
+		$this->feedID = $this['data']->validate('feedID') ? $this['data']->get('feedID') : 0;
 		$context['page_title'] = $this->text('modName');
 		$context[$context['admin_menu_name']]['tab_data'] = array(
 			'title' => $this->text('modName'),
@@ -61,9 +64,9 @@ class RssFeed extends Suki\Ohara
 		);
 
 		// Subactions.
-		$subActions = array('list', 'add',);
+		$subActions = array('list', 'add');
 
-		$this->_sa = $this->data('sa');
+		$this->_sa = $this['data']->get('sa');
 		$call = ($this->_sa && in_array($this->_sa, $subActions) ?  $this->_sa : 'list') . 'Feed';
 
 		return $this->{$call}();
@@ -73,17 +76,18 @@ class RssFeed extends Suki\Ohara
 	{
 		global $smcFunc, $context, $settings;
 
-		$do = array('delete', 'enable');
+		$subActions = array('delete', 'enable');
+		$do = $this['data']->get('do');
 
 		// Something to do? do do do...
-		if ($this->data('do') && in_array($this->data('do'), $do))
+		if (!empty($do) && in_array($do, $subActions))
 		{
-			$call = $this->data('do') . 'Feed';
+			$call = $do . 'Feed';
 			$this->{$call}();
 
 			// Set a proper message and do a redirect. Let us assume everything went fine...
-			$this->setUpdate('message', array($this->data('do') => 'info'));
-			return redirectexit('action=admin;area='. $this->name);
+			$this->setUpdate('message', array($this['data']->get('do') => 'info'));
+			return redirectexit('action=admin;area='. $this->name .';'. $context['session_var'] .'='. $context['session_id']);
 		}
 
 		$context['sub_template'] = 'rss_feeder_list';
@@ -100,6 +104,7 @@ class RssFeed extends Suki\Ohara
 			array(
 			)
 		);
+
 		list($numFeeds) = $smcFunc['db_fetch_row']($request);
 		$smcFunc['db_free_result']($request);
 
@@ -108,7 +113,7 @@ class RssFeed extends Suki\Ohara
 			'id' => 'rss_feederList',
 			'items_per_page' => 10,
 			'default_sort_col' => 'icon',
-			'base_href' => $this->scriptUrl . '?action=admin;area='. $this->name .';sa=rssfeeds',
+			'base_href' => $this->scriptUrl . '?action=admin;area='. $this->name .';sa=rssfeeds;'. $context['session_var'] .'='. $context['session_id'],
 			'no_items_label' => $this->text('none'),
 			'get_items' => array(
 				'function' => function ($start, $items_per_page, $sort) use ($smcFunc)
@@ -298,11 +303,8 @@ class RssFeed extends Suki\Ohara
 	{
 		global $smcFunc, $context, $txt, $settings;
 
-		// A feed ID is going to be used a lot so better set this right now, 0 for adding a new feed.
-		$this->feedID = $this->validate('feedID') ? $this->data('feedID') : 0;
-
 		// Saving?
-		if ($this->validate('do') && $this->data('do') == 'save')
+		if ($this['data']->validate('do') && $this['data']->get('do') == 'save')
 			return $this->saveFeed();
 
 		$context['fields'] = array(
@@ -371,7 +373,7 @@ class RssFeed extends Suki\Ohara
 				fatal_lang_error('RssFeed_feed_not_found', false);
 
 			$context['feed'] = $smcFunc['db_fetch_assoc']($request);
-			$context['feed'] = htmlspecialchars__recursive($context['feed']);
+			$context['feed'] = $this['data']->sanitize($context['feed']);
 			$smcFunc['db_free_result']($request);
 		}
 
@@ -413,7 +415,7 @@ class RssFeed extends Suki\Ohara
 			DELETE FROM {db_prefix}rssfeeds
 			WHERE id_feed IN ({array_int:feed_list})',
 			array(
-				'feed_list' => $this->data('toDelete'),
+				'feed_list' => $this['data']->get('toDelete'),
 			)
 		);
 	}
@@ -422,7 +424,7 @@ class RssFeed extends Suki\Ohara
 	{
 		global $smcFunc;
 
-		$enable = !empty($enable) ? $enable : $this->data('enable');
+		$enable = !empty($enable) ? $enable : $this['data']->get('enable');
 
 		// An extra security check.
 		$enable = (bool) $enable;
@@ -442,10 +444,7 @@ class RssFeed extends Suki\Ohara
 
 	public function saveFeed()
 	{
-		global $smcFunc;
-
-		// Check the session.
-		checkSession();
+		global $smcFunc, $context;
 
 		// By default everything is blank.
 		$insertOptions = array(
@@ -466,7 +465,7 @@ class RssFeed extends Suki\Ohara
 		);
 
 		// Get the data.
-		$insertOptions = array_merge($insertOptions, $this->data('feed'));
+		$insertOptions = array_merge($insertOptions, $this['data']->get('feed'));
 
 		$context['errors'] = array();
 
@@ -514,7 +513,7 @@ class RssFeed extends Suki\Ohara
 		{
 			$this->setUpdate('errors', $context['errors']);
 			$this->setUpdate('data', $insertOptions);
-			redirectexit('action=admin;area='. $this->name .';sa=add'. ($this->feedID ? ';feedID='. $this->feedID : ''));
+			redirectexit('action=admin;area='. $this->name .';sa=add;'. $context['session_var'] .'='. $context['session_id'] . ($this->feedID ? ';feedID='. $this->feedID : ''));
 		}
 
 		// Gotta need at least 1 feed to import...
@@ -588,7 +587,7 @@ class RssFeed extends Suki\Ohara
 		}
 
 		// Either way, redirect back to the list page.
-		redirectexit('action=admin;area='. $this->name);
+		redirectexit('action=admin;area='. $this->name .';'. $context['session_var'] .'='. $context['session_id']);
 	}
 
 	public function task()
@@ -607,9 +606,6 @@ class RssFeed extends Suki\Ohara
 
 		loadEssentialThemeData();
 		$context['character_set'] = empty($modSettings['global_character_set']) ? $txt['lang_character_set'] : $modSettings['global_character_set'];
-
-		// Create the instance.
-		$rss_data = new SimplePie();
 
 		// Lets do this....
 		// First grab all of the enabled feeds...
@@ -635,7 +631,7 @@ class RssFeed extends Suki\Ohara
 				'full_article' => $row['getfull'],
 				'regex' => $row['regex'],
 				'lock_topic' => $row['locked'],
-				'require_approval' => $row['approve'] && $modSettings['postmod_active'],
+				'require_approval' => $row['approve'] && !empty($modSettings['postmod_active']),
 				'single_topic' => $row['singletopic'],
 				'topic_prefix' => $row['topicprefix'],
 				'footer' => $row['footer'],
@@ -653,6 +649,7 @@ class RssFeed extends Suki\Ohara
 			{
 				if (is_a($rss_data, 'SimplePie'))
 					$rss_data->__destruct();
+
 				unset($rss_data);
 			}
 
@@ -664,6 +661,7 @@ class RssFeed extends Suki\Ohara
 			$rss_data->strip_htmltags(true);
 			$rss_data->set_feed_url($feed['url']);
 			$rss_data->init();
+
 			// If we don't get a valid chunk of data back, disable the feed
 			if ($rss_data->error())
 			{
@@ -783,7 +781,6 @@ class RssFeed extends Suki\Ohara
 					'id' => $feed['poster_id'],
 					'name' => $feed['poster_name'],
 					'update_post_count' => true,
-					'ip' => '0.0.0.0',
 				);
 
 				require_once($this->sourceDir . '/Subs-Post.php');
@@ -830,6 +827,7 @@ class RssFeed extends Suki\Ohara
 
 		if (function_exists('mb_strtolower'))
 			$string = mb_strtolower($string, $context['character_set']);
+
 		else
 			$string = strtolower($string);
 
