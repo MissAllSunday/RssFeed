@@ -86,8 +86,8 @@ class RssFeed extends Suki\Ohara
 			$this->{$call}();
 
 			// Set a proper message and do a redirect. Let us assume everything went fine...
-			$this->setUpdate('message', array($this['data']->get('do') => 'info'));
-			return redirectexit('action=admin;area='. $this->name .';'. $context['session_var'] .'='. $context['session_id']);
+			$this['data']->setUpdate('message', array($this['data']->get('do') => 'info'));
+			return $this['tools']->redirect('action=admin;area='. $this->name);
 		}
 
 		$context['sub_template'] = 'rss_feeder_list';
@@ -508,12 +508,11 @@ class RssFeed extends Suki\Ohara
 		if (!empty($insertOptions['getfull']) && empty($insertOptions['regex']))
 			$context['errors']['regex'] = ($insertOptions['regex'] = '');
 
-		// if we had any errors, lets kick back a screen and highlight them...
+		// If we had any errors, lets kick back a screen and highlight them...
 		if (!empty($context['errors']))
 		{
-			$this->setUpdate('errors', $context['errors']);
-			$this->setUpdate('data', $insertOptions);
-			redirectexit('action=admin;area='. $this->name .';sa=add;'. $context['session_var'] .'='. $context['session_id'] . ($this->feedID ? ';feedID='. $this->feedID : ''));
+			$this['data']->setUpdate('errors', $context['errors']);
+			$this['tools']->redirect('action=admin;area='. $this->name .';sa=add'. ($this->feedID ? ';feedID='. $this->feedID : ''), array('message' => array('data', $insertOptions)));
 		}
 
 		// Gotta need at least 1 feed to import...
@@ -549,7 +548,7 @@ class RssFeed extends Suki\Ohara
 				WHERE id_feed = {int:id_feed}',
 				array_merge(array('id_feed' => $this->feedID), $insertOptions)
 			);
-			$this->setUpdate('message', array('update' => 'info'));
+			$this['data']->setUpdate('message', array('update' => 'info'));
 		}
 		// Or I guess we're inserting a new one
 		else
@@ -583,11 +582,11 @@ class RssFeed extends Suki\Ohara
 			);
 			$id_feed = $smcFunc['db_insert_id']('{db_prefix}rssfeeds', 'id_feed');
 
-			$this->setUpdate('message', array('insert' => (empty($id_feed) ? 'error' : 'info')));
+			$this['data']->setUpdate('message', array('insert' => (empty($id_feed) ? 'error' : 'info')));
 		}
 
 		// Either way, redirect back to the list page.
-		redirectexit('action=admin;area='. $this->name .';'. $context['session_var'] .'='. $context['session_id']);
+		$this['tools']->redirect('action=admin;area='. $this->name);
 	}
 
 	public function task()
