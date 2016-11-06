@@ -656,7 +656,7 @@ class RssFeed extends Suki\Ohara
 			$rss_data = new SimplePie();
 			$rss_data->enable_cache(true);
 			$rss_data->set_cache_location($cachedir);
-			$rss_data->set_cache_duration(60*60*2); // 2 hours
+			$rss_data->set_cache_duration(129600); // 1.5 days Most scheduled tasks will run once a day so its pointless to set the cache lower than that.
 			$rss_data->set_output_encoding($context['character_set']);
 			$rss_data->strip_htmltags(true);
 			$rss_data->set_feed_url($feed['url']);
