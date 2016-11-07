@@ -22,16 +22,6 @@ $_config = array(
 	'_availableHooks' => array(
 		'admin' => 'integrate_admin_areas',
 	),
-	'_adminSubsections' => array(
-		'settings' =>
-			array (
-			0 => 'modName',
-			),
-		'feed' =>
-			array (
-			0 => 'feed_add',
-			),
-		),
 );
 
 // All good.
@@ -51,7 +41,7 @@ else
 {
 	$pref = smf_json_decode($modSettings['OharaAutoload'], true);
 
-	$pref['namespaces']['SimplePie'] => array('{$vendorDir}/simplepie/simplepie/library');
+	$pref['namespaces']['SimplePie'] = array('{$vendorDir}/simplepie/simplepie/library');
 }
 
 // Either way, save it.

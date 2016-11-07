@@ -20,7 +20,7 @@ class RssFeed extends Suki\Ohara
 {
 	public $name = __CLASS__;
 
-	protected $_useConfig = true;
+	public $useConfig = true;
 
 	public function __construct()
 	{
@@ -52,7 +52,7 @@ class RssFeed extends Suki\Ohara
 		checkSession('request');
 
 		// A feed ID is going to be used a lot so better set this right now, 0 for adding a new feed.
-		$this->feedID = $this['data']->validate('feedID') ? $this['data']->get('feedID') : 0;
+		$this->feedID = $this['data']->get('feedID', 0);
 		$context['page_title'] = $this->text('modName');
 		$context[$context['admin_menu_name']]['tab_data'] = array(
 			'title' => $this->text('modName'),
@@ -93,7 +93,7 @@ class RssFeed extends Suki\Ohara
 		$context['sub_template'] = 'rss_feeder_list';
 
 		// Any message?
-		$context['feed_message'] = $this->getUpdate('message');
+		$context['feed_message'] = $this['data']->getUpdate('message');
 
 		// Quick trick for PHP < 5.4.
 		$that = $this;
@@ -149,7 +149,7 @@ class RssFeed extends Suki\Ohara
 						'value' => $this->text('feed_enabled'),
 					),
 					'data' => array(
-						'function' => function ($rowData) use($that, $settings, $smcFunc)
+						'function' => function ($rowData) use($that, $settings, $smcFunc, $context)
 						{
 							if (empty($rowData['name']) && $rowData['enabled'])
 							{
@@ -168,7 +168,7 @@ class RssFeed extends Suki\Ohara
 								$rowData['enabled'] = 0;
 							}
 
-							return '<a href="' . $that->scriptUrl . '?action=admin;area='. $that->name .';sa='. $that->_sa .';feedID=' . $rowData['id_feed'] .';do=enable;enable='. ($rowData['enabled'] ? '0' : '1') . '" class="generic_icons '. ($rowData['enabled'] ? 'valid' : 'disable') . '"></a>';
+							return '<a href="' . $that->scriptUrl . '?action=admin;area='. $that->name .';sa='. $that->_sa .';feedID=' . $rowData['id_feed'] .';do=enable;enable='. ($rowData['enabled'] ? '0' : '1') . ';'. $context['session_var'] .'='. $context['session_id'] .'" class="generic_icons '. ($rowData['enabled'] ? 'valid' : 'disable') . '"></a>';
 						},
 						'style' => 'text-align: center; width: 130px;',
 					),
@@ -320,8 +320,8 @@ class RssFeed extends Suki\Ohara
 		);
 
 		// Any errors?
-		$context['feed'] = $this->getUpdate('data');
-		$context['errors'] = $this->getUpdate('errors');
+		$context['feed'] = $this['data']->getUpdate('data');
+		$context['errors'] = $this['data']->getUpdate('errors');
 
 		$context['sub_template'] = 'rss_feeder_add';
 
@@ -648,7 +648,7 @@ class RssFeed extends Suki\Ohara
 			// If this is already set, let's kill it, memory hog, it can be.
 			if (isset($rss_data))
 			{
-				if ($rss_data instanceof $class))
+				if ($rss_data instanceof $class)
 					$rss_data->__destruct();
 
 				unset($rss_data);
