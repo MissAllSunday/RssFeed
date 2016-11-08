@@ -83,10 +83,11 @@ class RssFeed extends Suki\Ohara
 		if (!empty($do) && in_array($do, $subActions))
 		{
 			$call = $do . 'Feed';
-			$this->{$call}();
+			$result = $this->{$call}();
 
-			// Set a proper message and do a redirect. Let us assume everything went fine...
-			$this['data']->setUpdate('message', array($this['data']->get('do') => 'info'));
+			// Set a proper message and do a redirect.
+			$this['data']->setUpdate('message', array($this['data']->get('do') => ($result ? 'info' : 'error')));
+
 			return $this['tools']->redirect('action=admin;area='. $this->name);
 		}
 
@@ -149,18 +150,11 @@ class RssFeed extends Suki\Ohara
 						'value' => $this->text('feed_enabled'),
 					),
 					'data' => array(
-						'function' => function ($rowData) use($that, $settings, $smcFunc, $context)
+						'function' => function ($rowData) use($that, $context)
 						{
 							if (empty($rowData['name']) && $rowData['enabled'])
 							{
-								$smcFunc['db_query']('', '
-									UPDATE {db_prefix}rssfeeds
-									SET enabled = 0
-									WHERE id_feed = {int:feed}',
-									array(
-										'feed' => $rowData['id_feed'],
-									)
-								);
+								$that->enableFeed($rowData['id_feed'], false);
 
 								// Log an error about the issue, just so the user can see why their feed was disabled...
 								log_error($that->text('modName') . ': ' . $rowData['title'] . ' (' . $that->text('board_error') . ')');
@@ -249,7 +243,7 @@ class RssFeed extends Suki\Ohara
 					),
 					'data' => array(
 						'sprintf' => array(
-							'format' => '<a href="' . $this->scriptUrl . '?action=admin;area='. $this->name .';sa=add;feedID=%1$d">' . $this->text('feed_modify') . '</a>',
+							'format' => '<a href="' . $this->scriptUrl . '?action=admin;area='. $this->name .';sa=add;feedID=%1$d;'. $context['session_var'] .'='. $context['session_id'] .'">' . $this->text('feed_modify') . '</a>',
 							'params' => array(
 								'id_feed' => false,
 							),
@@ -273,14 +267,14 @@ class RssFeed extends Suki\Ohara
 				),
 			),
 			'form' => array(
-				'href' => $this->scriptUrl . '?action=admin;area='. $this->name .';sa='. $this->_sa .';;do=delete',
+				'href' => $this->scriptUrl . '?action=admin;area='. $this->name .';sa='. $this->_sa .';do=delete;'. $context['session_var'] .'='. $context['session_id'],
 				'name' => 'rssfeedForm',
 			),
 			'additional_rows' => array(
 				array(
 					'position' => 'above_column_headers',
 					'value' => '
-						[<a href="' . $this->scriptUrl . '?action=admin;area=;area='. $this->name .';sa=add">'. $this->text('feed_add') . '</a>]',
+						[<a href="' . $this->scriptUrl . '?action=admin;area=;area='. $this->name .';sa=add;'. $context['session_var'] .'='. $context['session_id'] .'">'. $this->text('feed_add') . '</a>]',
 					'style' => 'text-align: right;',
 				),
 				array(
@@ -411,24 +405,37 @@ class RssFeed extends Suki\Ohara
 	{
 		global $smcFunc;
 
+		$toDelete = $this['data']->get('toDelete', array());
+
+		if (empty($toDelete))
+			return false;
+
 		$smcFunc['db_query']('', '
 			DELETE FROM {db_prefix}rssfeeds
 			WHERE id_feed IN ({array_int:feed_list})',
 			array(
-				'feed_list' => $this['data']->get('toDelete'),
+				'feed_list' => $toDelete,
 			)
 		);
+
+		return true;
 	}
 
-	public function enableFeed($feed = false, $enable = '')
+	public function enableFeed($feed = 0, $enable = null)
 	{
 		global $smcFunc;
 
-		$enable = !empty($enable) ? $enable : $this['data']->get('enable');
+		$feed = !empty($feed) && is_int($feed) ? $feed : $this->feedID;
+
+		$enable = !empty($enable) && is_bool($enable) ? $enable : $this['data']->get('enable');
+
+		// Need an ID, any ID!
+		if (empty($feed))
+			return false;
 
 		// An extra security check.
-		$enable = (bool) $enable;
 		$enable = (int) $enable;
+		$feed = (int) $feed;
 
 		// Quick change on the status...
 		$smcFunc['db_query']('', '
@@ -440,6 +447,8 @@ class RssFeed extends Suki\Ohara
 				'feed' => $this->feedID,
 			)
 		);
+
+		return true;
 	}
 
 	public function saveFeed()
@@ -666,14 +675,7 @@ class RssFeed extends Suki\Ohara
 			// If we don't get a valid chunk of data back, disable the feed
 			if ($rss_data->error())
 			{
-				$smcFunc['db_query']('', '
-					UPDATE {db_prefix}rssfeeds
-					SET enabled = 0
-					WHERE id_feed = {int:feed}',
-					array(
-						'feed' => $id,
-					)
-				);
+				$this->enableFeed($id, false);
 
 				// Log an error about the issue, just so the user can see why their feed was disabled...
 				log_error($this->text('modName') . ': ' . $feed['url'] . ' (' . $rss_data->error() . ')');
