@@ -784,6 +784,7 @@ class RssFeed extends Suki\Ohara
 					'id' => $feed['poster_id'],
 					'name' => $feed['poster_name'],
 					'update_post_count' => true,
+					'ip' => '127.0.0.0',
 				);
 
 				require_once($this->sourceDir . '/Subs-Post.php');
