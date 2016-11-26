@@ -444,7 +444,7 @@ class RssFeed extends Suki\Ohara
 			WHERE id_feed = {int:feed}',
 			array(
 				'option' => $enable,
-				'feed' => $this->feedID,
+				'feed' => $feed,
 			)
 		);
 

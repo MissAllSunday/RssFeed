@@ -220,12 +220,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/MissAllSunday/Ohara.git",
-                "reference": "2a334db0c45cabae588ffadd8c0a1c8240813005"
+                "reference": "b7ae55e0dbab40f04ed71acb4cbf6e99acd12a84"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/MissAllSunday/Ohara/zipball/2a334db0c45cabae588ffadd8c0a1c8240813005",
-                "reference": "2a334db0c45cabae588ffadd8c0a1c8240813005",
+                "url": "https://api.github.com/repos/MissAllSunday/Ohara/zipball/b7ae55e0dbab40f04ed71acb4cbf6e99acd12a84",
+                "reference": "b7ae55e0dbab40f04ed71acb4cbf6e99acd12a84",
                 "shasum": ""
             },
             "require": {
@@ -257,7 +257,7 @@
                 "SMF",
                 "modifications"
             ],
-            "time": "2016-11-07 21:48:27"
+            "time": "2016-11-21 17:28:06"
         }
     ],
     "packages-dev": [],
